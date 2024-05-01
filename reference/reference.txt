@@ -1,0 +1,1 @@
+https://xlsxwriter.readthedocs.io/example_protection.html

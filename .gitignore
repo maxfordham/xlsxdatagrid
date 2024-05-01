@@ -1,0 +1,8 @@
+tests/__pycache__/*
+tests/~$*
+src/xlsxdatagrid/__pycache__/*
+src/xlsxdatagrid/__about__.py
+.pytest_cache/*
+reference/example*
+*.xlsx
+reference/*.xlsx
