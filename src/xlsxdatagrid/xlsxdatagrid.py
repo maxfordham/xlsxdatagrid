@@ -345,7 +345,7 @@ class XlTableWriter(BaseModel):
     gridschema: DataGridSchema
     data: dict[str, list]
     is_table: bool = True
-    header_sections: list = ["section", "category"]
+    header_sections: list = ["section", "category"]  # used to colour code only
     xy: tuple[int, int] = 0, 0  # row, col
     xy_arrays: dict[str, tuple[int, int]] = {"a": (0, 0)}
     rng_arrays: dict[str, tuple[int, int, int, int]] = {"a": (0, 0, 0, 0)}
@@ -390,7 +390,6 @@ class XlTableWriter(BaseModel):
             beg = (beg[0] - 1, beg[1])  # inc. header
             self.tbl_range = (*beg, *end)
             self.xy_headers = [(x + n, y) for n in range(0, hd)]
-            # self.rng_headers = [(xy[0]-hd, xy[1], xy[0]-1, xy[1]) for xy in self.xy_arrays.values()] # (x1, y1, x2, y2)
             self.rng_headers = [
                 (v[0], v[1], v[0], v[1] + len(self.xy_arrays)) for v in self.xy_headers
             ]  # (x1, y1, x2, y2)
@@ -421,7 +420,7 @@ class XlTableWriter(BaseModel):
                 k: (v[0], v[1], v[0], v[1] + length) for k, v in self.xy_arrays.items()
             }
             beg, end = self.rng_arrays[fd_nns[0]][0:2], self.rng_arrays[fd_nns[-1]][2:4]
-            beg = (beg[0], beg[1] - hd)  # inc. header
+            beg = (beg[0] - 1, beg[1] - hd)  # inc. header
             self.tbl_range = (*beg, *end)
             self.xy_headers = [(x, y + n) for n in range(0, hd)]
             self.rng_headers = [
@@ -504,7 +503,9 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     name = xl_tbl.gridschema.title
     worksheet = workbook.add_worksheet(name=name)
     is_t = xl_tbl.gridschema.is_transposed
-    hd = len(xl_tbl.gridschema.datagrid_index_name)  # header depth
+    headers = xl_tbl.gridschema.datagrid_index_name
+    hd = len(headers)  # header depth
+    label_index = xl_tbl.xy[0] if is_t else xl_tbl.xy[1]
     write_array = worksheet.write_row if is_t else worksheet.write_column
     write_header = worksheet.write_row if not is_t else worksheet.write_column
     header_index = xl_tbl.xy_headers[-1][1] if is_t else xl_tbl.xy_headers[-1][0]
@@ -528,26 +529,35 @@ def write_table(workbook, xl_tbl: XlTableWriter):
 
     header_cell_format = workbook.add_format(_format)
     calc_cell_format = workbook.add_format(dict(font_color="blue", italic=True))
+    header_label_cell_format = workbook.add_format(
+        dict(font_color="#999999", italic=True)
+    )
+    header_white_cell_format = workbook.add_format(dict(font_color="#FFFFFF"))
 
-    formula_columns = []
     # make table --------------------------
 
-    get_name = lambda n, hd: f"Column{n}" if n >= hd else f"#{n}T"
+    get_name = lambda n, hd: f"Column{n}" if n >= hd else headers[n]
     column_labels = [
         get_name(n, hd) for n in range(0, len(xl_tbl.gridschema.field_names))
     ]
 
-    if is_t:  # transposed - no headers
+    formula_columns = []
+    if is_t:  # transposed - with headers
+        column_labels = [
+            (lambda n, c: c + "T" if n < hd else c)(n, c)
+            for n, c in enumerate(column_labels)
+        ]
         get_name = lambda n, hd: (
             {"header": f"Column{n}"} if n >= hd else {"header": f"#{n}T"}
         )
-        columns = [{"header": c for c in column_labels}]
+        columns = [{"header": c} for c in column_labels]
         options = dict(
             style="Table Style Light 1",
             header_row=True,
             first_column=False,
             columns=columns,
         )
+
     else:  # not transposed - with headers
         columns = {
             f.name: {"header": h}
@@ -569,6 +579,7 @@ def write_table(workbook, xl_tbl: XlTableWriter):
             first_column=False,
             columns=list(columns.values()),
         )
+
     options = options | {"name": name}
     worksheet.add_table(*xl_tbl.tbl_range, options)
     # NOTE: if you write a table to excel with a header - the table range includes the header.
@@ -603,6 +614,10 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     # apply header border
     cell_format = workbook.add_format(dict(valign="top") | header_border)
     set_header_border(None, cell_format)
+    write_array(*xl_tbl.xy, column_labels[0:hd], header_label_cell_format)
+    if is_t:
+        xy = xl_tbl.xy[0], xl_tbl.xy[1] + hd
+        write_array(*xy, column_labels[hd:], header_white_cell_format)
     worksheet.freeze_panes(*freeze_panes)
     worksheet.autofit()
     worksheet.hide_gridlines(xl_tbl.hide_gridlines)
