@@ -1,27 +1,22 @@
 from annotated_types import doc
 import annotated_types
-import xlsxwriter
 from pydantic import (
     BaseModel,
-    RootModel,
     Field,
     ConfigDict,
-    PositiveFloat,
     computed_field,
     model_validator,
 )
-from typing_extensions import Annotated, NotRequired
+from typing_extensions import Annotated
 from jsonref import replace_refs
-from dataclasses import dataclass, fields
-from datetime import date, datetime
 import xlsxwriter.worksheet
-import pathlib
 from annotated_types import doc
 import functools
 import typing as ty
 from xlsxdatagrid.colours import get_color_pallette
 from pydantic_extra_types.color import Color
 from typing_extensions import Annotated
+from datetime import datetime
 
 # https://specs.frictionlessdata.io//table-schema/
 name_doc = """The field descriptor MUST contain a name property.
@@ -297,6 +292,17 @@ class DataGridSchema(BaseModel):
     column_widths: dict[str, float] = {}
     is_transposed: bool = False  # TODO: rename -> display_transposed
     fields: list[FieldSchema]
+    metadata_fstring: str = (
+        "#Schema={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now}"
+    )
+
+    @computed_field
+    def now(self) -> datetime:
+        return datetime.now()
+
+    @computed_field
+    def header_depth(self) -> int:
+        return len(self.datagrid_index_name)
 
     @computed_field
     def header(self) -> list[ty.Union[str, list[str]]]:
@@ -363,13 +369,17 @@ class XlTableWriter(BaseModel):
     hide_gridlines: Annotated[int, annotated_types.Interval(ge=0, le=2)] = (
         2  # hidden by default
     )
+    metadata: str = ""
 
     @model_validator(mode="after")
     def build(self) -> "XlTableWriter":
+        self.metadata = self.gridschema.metadata_fstring.format(
+            **self.gridschema.model_dump()
+        )
         x, y = self.xy  # start coordinates
         is_t = self.gridschema.is_transposed
         ix_nm = self.gridschema.datagrid_index_name  # column headings
-        hd = len(ix_nm)  # header depth
+        hd = self.gridschema.header_depth  # header depth
         fd_nns = list(self.data.keys())  # field names
         length = len(self.data[fd_nns[0]]) - 1  # length of data arrays
         self.format_headers = hd * [None]
@@ -378,6 +388,10 @@ class XlTableWriter(BaseModel):
             x += 1
         else:
             y += 1
+        # ^ leave room for the header names
+
+        x += 1
+        # ^ leave room for the metadata
 
         if not is_t:  # build a normal xl table
             self.xy_arrays = {
@@ -410,7 +424,6 @@ class XlTableWriter(BaseModel):
                 for f in self.gridschema.fields
                 if hasattr(f, "xl_formula")
             }  # formula override (normally empty)
-            pass
 
         else:  # build a transposed xl table
             self.xy_arrays = {
@@ -543,13 +556,6 @@ def write_table(workbook, xl_tbl: XlTableWriter):
 
     formula_columns = []
     if is_t:  # transposed - with headers
-        column_labels = [
-            (lambda n, c: c + "T" if n < hd else c)(n, c)
-            for n, c in enumerate(column_labels)
-        ]
-        get_name = lambda n, hd: (
-            {"header": f"Column{n}"} if n >= hd else {"header": f"#{n}T"}
-        )
         columns = [{"header": c} for c in column_labels]
         options = dict(
             style="Table Style Light 1",
@@ -614,22 +620,22 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     # apply header border
     cell_format = workbook.add_format(dict(valign="top") | header_border)
     set_header_border(None, cell_format)
-    write_array(*xl_tbl.xy, column_labels[0:hd], header_label_cell_format)
+
+    # write column labels
+    x, y = xl_tbl.xy
+    x += 1  # for metadata row
+    write_array(*(x, y), column_labels[0:hd], header_label_cell_format)
     if is_t:
-        xy = xl_tbl.xy[0], xl_tbl.xy[1] + hd
-        write_array(*xy, column_labels[hd:], header_white_cell_format)
+        # set empty table headers to be white
+        y += hd
+        write_array(
+            *(x, y),
+            column_labels[hd : len(column_labels) - (hd + 1)],
+            header_white_cell_format,
+        )
     worksheet.freeze_panes(*freeze_panes)
     worksheet.autofit()
     worksheet.hide_gridlines(xl_tbl.hide_gridlines)
+    # write metadata
+    worksheet.write(*xl_tbl.xy, xl_tbl.metadata, header_label_cell_format)
     return None
-
-
-# --------------------------------------------------------------------------------
-
-# f1 = FieldSchema(name="f1", title="F1", section="F", type="string")
-# f2 = FieldSchema(name="f2", title="F2", section="F", type="string")
-# g1 = FieldSchema(name="g1", title="G1", section="G", type="string")
-
-# gridschema = DataGridSchema(
-#     title="test", fields=[f1, f2, g1], datagrid_index_name=["name"]
-# ).model_dump(exclude_none=True)
