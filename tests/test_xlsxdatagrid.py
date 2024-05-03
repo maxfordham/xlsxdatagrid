@@ -11,7 +11,7 @@ from enum import Enum
 from typing_extensions import Annotated
 from datetime import date, datetime
 import xlsxwriter as xw
-
+from .constants import PATH_XL, PATH_XL_TRANSPOSED
 from xlsxdatagrid.xlsxdatagrid import write_table, get_data_and_schema, XlTableWriter
 
 
@@ -93,22 +93,25 @@ def test_write_table():
     data, gridschema = get_data_and_schema(pyd_obj)
     xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
     name = f"{gridschema.title}"
-    PATH_OUT = pathlib.Path(__file__).parent / f"{name}.xlsx"
-    workbook = xw.Workbook(str(PATH_OUT))
+    # PATH_OUT = pathlib.Path(__file__).parent / f"{name}.xlsx"
+    PATH_XL.unlink(missing_ok=True)
+    workbook = xw.Workbook(str(PATH_XL))
     write_table(workbook, xl_tbl)
     workbook.close()
-    assert PATH_OUT.is_file()
+    assert PATH_XL.is_file()
     print("done")
 
 
 def test_write_table_transposed():
     pyd_obj = get_test_array(is_transposed=True)
     data, gridschema = get_data_and_schema(pyd_obj)
-    xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
     name = f"{gridschema.title}"
-    PATH_OUT = pathlib.Path(__file__).parent / f"{name}.xlsx"
-    workbook = xw.Workbook(str(PATH_OUT))
+    # PATH_OUT = pathlib.Path(__file__).parent / f"{name}.xlsx"
+    PATH_XL_TRANSPOSED.unlink(missing_ok=True)
+    xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
+
+    workbook = xw.Workbook(str(PATH_XL_TRANSPOSED))
     write_table(workbook, xl_tbl)
     workbook.close()
-    assert PATH_OUT.is_file()
+    assert PATH_XL_TRANSPOSED.is_file()
     print("done")
