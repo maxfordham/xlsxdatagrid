@@ -1,0 +1,94 @@
+{
+    "$defs": {
+        "MyColor": {
+            "enum": [
+                "red",
+                "green",
+                "blue"
+            ],
+            "title": "MyColor",
+            "type": "string"
+        },
+        "Test": {
+            "properties": {
+                "a_int": {
+                    "default": 1,
+                    "section": "numeric",
+                    "title": "A Int",
+                    "type": "integer"
+                },
+                "a_constrainedint": {
+                    "default": 3,
+                    "maximum": 10,
+                    "minimum": 0,
+                    "section": "numeric",
+                    "title": "A Constrainedint",
+                    "type": "integer"
+                },
+                "b_float": {
+                    "default": 1.5,
+                    "section": "numeric",
+                    "title": "B Float",
+                    "type": "number"
+                },
+                "c_str": {
+                    "default": "string",
+                    "section": "unicode",
+                    "title": "C Str",
+                    "type": "string"
+                },
+                "c_constrainedstr": {
+                    "default": "string",
+                    "maxLength": 10,
+                    "section": "unicode",
+                    "title": "C Constrainedstr",
+                    "type": "string"
+                },
+                "d_enum": {
+                    "allOf": [
+                        {
+                            "$ref": "#/$defs/MyColor"
+                        }
+                    ],
+                    "section": "unicode"
+                },
+                "e_bool": {
+                    "default": true,
+                    "section": "boolean",
+                    "title": "E Bool",
+                    "type": "boolean"
+                },
+                "f_date": {
+                    "default": "2024-05-03",
+                    "format": "date",
+                    "section": "date",
+                    "title": "F Date",
+                    "type": "string"
+                },
+                "g_datetime": {
+                    "default": "2024-05-03T15:23:10.915463",
+                    "format": "date-time",
+                    "section": "date",
+                    "title": "G Datetime",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "d_enum"
+            ],
+            "title": "Test",
+            "type": "object"
+        }
+    },
+    "datagrid_index_name": [
+        "section",
+        "title",
+        "name"
+    ],
+    "is_transposed": false,
+    "items": {
+        "$ref": "#/$defs/Test"
+    },
+    "title": "TestArray",
+    "type": "array"
+}

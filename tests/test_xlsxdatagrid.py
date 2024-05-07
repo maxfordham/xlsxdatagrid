@@ -1,4 +1,3 @@
-import pathlib
 from pydantic import (
     BaseModel,
     RootModel,
@@ -47,13 +46,6 @@ class Test(BaseModel):
         return self.a_int * self.b_float
 
 
-class Test1(BaseModel):
-    b_int: int = Field(1, json_schema_extra=dict(section="numeric"))
-    b_constrainedint: Annotated[int, Field(ge=0, le=10)] = Field(
-        3, json_schema_extra=dict(section="numeric")
-    )
-
-
 class TestArray(RootModel):
     model_config = ConfigDict(
         json_schema_extra=dict(
@@ -71,10 +63,6 @@ class TestArrayTransposed(TestArray):
     )
 
 
-class TestArray1(RootModel):
-    root: list[Test1]
-
-
 def get_test_array(is_transposed=False):
     t1, t2, t3 = (
         Test(d_enum=MyColor.GREEN),
@@ -89,12 +77,10 @@ def get_test_array(is_transposed=False):
 
 
 def test_write_table():
+    PATH_XL.unlink(missing_ok=True)
     pyd_obj = get_test_array()
     data, gridschema = get_data_and_schema(pyd_obj)
     xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
-    name = f"{gridschema.title}"
-    # PATH_OUT = pathlib.Path(__file__).parent / f"{name}.xlsx"
-    PATH_XL.unlink(missing_ok=True)
     workbook = xw.Workbook(str(PATH_XL))
     write_table(workbook, xl_tbl)
     workbook.close()
@@ -103,13 +89,10 @@ def test_write_table():
 
 
 def test_write_table_transposed():
+    PATH_XL_TRANSPOSED.unlink(missing_ok=True)
     pyd_obj = get_test_array(is_transposed=True)
     data, gridschema = get_data_and_schema(pyd_obj)
-    name = f"{gridschema.title}"
-    # PATH_OUT = pathlib.Path(__file__).parent / f"{name}.xlsx"
-    PATH_XL_TRANSPOSED.unlink(missing_ok=True)
     xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
-
     workbook = xw.Workbook(str(PATH_XL_TRANSPOSED))
     write_table(workbook, xl_tbl)
     workbook.close()

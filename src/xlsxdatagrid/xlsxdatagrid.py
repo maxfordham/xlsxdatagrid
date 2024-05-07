@@ -6,10 +6,11 @@ from pydantic import (
     ConfigDict,
     computed_field,
     model_validator,
+    field_validator,
+    ValidationInfo,
 )
 from typing_extensions import Annotated
 from jsonref import replace_refs
-import xlsxwriter.worksheet
 from annotated_types import doc
 import functools
 import typing as ty
@@ -137,7 +138,6 @@ def map_simple_numeric_constraints(di):
 
 def map_constraints(di):
     li_num = get_numeric_constraints(di)
-    # if len(li_num):
     return None
 
 
@@ -278,7 +278,24 @@ class HeaderStyling(BaseModel):  # matches ipydatagrid
     )
 
 
-class DataGridSchema(BaseModel):
+METADATA_FSTRING: str = (
+    "#Schema={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now}"
+)
+
+
+class DataGridMetaData(BaseModel):
+    template_name: str = ""
+    is_transposed: bool = False  # TODO: rename -> display_transposed
+    header_depth: int = Field(1, validate_default=True)
+    metadata_fstring: ty.Literal[METADATA_FSTRING] = METADATA_FSTRING
+    # date_time:
+
+    @computed_field
+    def now(self) -> datetime:
+        return datetime.now()
+
+
+class DataGridSchema(DataGridMetaData):
     model_config = ConfigDict(extra="allow")
 
     title: str  # no spaces
@@ -288,21 +305,13 @@ class DataGridSchema(BaseModel):
     base_row_header_size: int = 64
     base_column_header_size: int = 20
     datagrid_index_name: tuple = ("name",)  # RENAME: header_field_keys
-    # is_multiindex = False
     column_widths: dict[str, float] = {}
-    is_transposed: bool = False  # TODO: rename -> display_transposed
     fields: list[FieldSchema]
-    metadata_fstring: str = (
-        "#Schema={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now}"
-    )
 
-    @computed_field
-    def now(self) -> datetime:
-        return datetime.now()
-
-    @computed_field
-    def header_depth(self) -> int:
-        return len(self.datagrid_index_name)
+    @model_validator(mode="after")
+    def get_header_depth(self) -> "DataGridSchema":
+        self.header_depth = len(self.datagrid_index_name)
+        return self
 
     @computed_field
     def header(self) -> list[ty.Union[str, list[str]]]:
