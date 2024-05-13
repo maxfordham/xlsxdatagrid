@@ -18,6 +18,7 @@ from xlsxdatagrid.colours import get_color_pallette
 from pydantic_extra_types.color import Color
 from typing_extensions import Annotated
 from datetime import datetime
+from xlsxwriter.utility import xl_rowcol_to_cell
 
 # https://specs.frictionlessdata.io//table-schema/
 name_doc = """The field descriptor MUST contain a name property.
@@ -25,6 +26,30 @@ name_doc = """The field descriptor MUST contain a name property.
  As such it SHOULD be unique (though it is possible, but very bad practice, for the data file to have multiple columns with the same name). 
  name SHOULD NOT be considered case sensitive in determining uniqueness. 
  However, since it should correspond to the name of the field in the data file it may be important to preserve case."""
+
+
+# NOT IN USE
+class HeaderStyling(BaseModel):  # matches ipydatagrid
+    header_background_color: ty.Optional[Color] = Field(
+        None, description="background color for all non-body cells (index and columns)"
+    )
+    header_grid_line_color: ty.Optional[Color] = Field(
+        None, description="grid line color for all non-body cells (index and columns)"
+    )
+    header_vertical_grid_line_color: ty.Optional[Color] = Field(
+        None, description="vertical grid line color for all non-body cells"
+    )
+    header_horizontal_grid_line_color: ty.Optional[Color] = Field(
+        None, description="horizontal grid line color for all non-body cells"
+    )
+    header_selection_fill_color: ty.Optional[Color] = Field(
+        None,
+        description="fill color of headers intersecting with selected area at column or row",
+    )
+    header_selection_border_color: ty.Optional[Color] = Field(
+        None,
+        description="border color of headers intersecting with selected area at column or row",
+    )
 
 
 class Constraints(BaseModel):
@@ -113,20 +138,6 @@ XL_TABLE_COLUMNS_PROPERTIES = (
     "format",
 )
 
-# "between",
-# "not between"
-# ==
-# != # not equal to
-# >  # greater than
-# <  # less than
-# >=  # greater than or equal to
-# <=  # less than or equal to
-
-
-# MAP_DATAVALIDATION = {
-#     "minimum":
-# }
-
 
 def get_numeric_constraints(di):
     return [k for k in di.keys() if k in NUMERIC_CONSTRAINTS]
@@ -156,6 +167,13 @@ class FieldSchema(BaseModel):
         None  # this is what the https://specs.frictionlessdata.io//table-schema/ but other things
     )
     formula: ty.Optional[str] = None
+
+
+class FieldSchemaXl(FieldSchema):
+    data_validation: dict = {}
+    conditional_format: str
+    cell_format: dict
+    xl_formula: ty.Optional[str] = None
 
 
 def get_xl_constraints(f: FieldSchema):
@@ -247,39 +265,8 @@ def get_xl_constraints(f: FieldSchema):
         }
 
 
-class FieldSchemaXl(FieldSchema):
-    data_validation: dict = {}
-    conditional_format: str
-    cell_format: dict
-    formula: str
-
-
-# NOT IN USE
-class HeaderStyling(BaseModel):  # matches ipydatagrid
-    header_background_color: ty.Optional[Color] = Field(
-        None, description="background color for all non-body cells (index and columns)"
-    )
-    header_grid_line_color: ty.Optional[Color] = Field(
-        None, description="grid line color for all non-body cells (index and columns)"
-    )
-    header_vertical_grid_line_color: ty.Optional[Color] = Field(
-        None, description="vertical grid line color for all non-body cells"
-    )
-    header_horizontal_grid_line_color: ty.Optional[Color] = Field(
-        None, description="horizontal grid line color for all non-body cells"
-    )
-    header_selection_fill_color: ty.Optional[Color] = Field(
-        None,
-        description="fill color of headers intersecting with selected area at column or row",
-    )
-    header_selection_border_color: ty.Optional[Color] = Field(
-        None,
-        description="border color of headers intersecting with selected area at column or row",
-    )
-
-
 METADATA_FSTRING: str = (
-    "#Schema={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now}"
+    "#TemplateName={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now}"
 )
 
 
@@ -287,8 +274,12 @@ class DataGridMetaData(BaseModel):
     template_name: str = ""
     is_transposed: bool = False  # TODO: rename -> display_transposed
     header_depth: int = Field(1, validate_default=True)
-    metadata_fstring: ty.Literal[METADATA_FSTRING] = METADATA_FSTRING
-    # date_time:
+    metadata_fstring: ty.Literal[
+        "#TemplateName={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now}"
+    ] = METADATA_FSTRING
+    date_time: ty.Optional[datetime] = None
+    datagrid_index_name: tuple = ("name",)  # RENAME: header_field_keys
+    header: list[list[str]] = []
 
     @computed_field
     def now(self) -> datetime:
@@ -304,20 +295,16 @@ class DataGridSchema(DataGridMetaData):
     base_column_size: int = 64
     base_row_header_size: int = 64
     base_column_header_size: int = 20
-    datagrid_index_name: tuple = ("name",)  # RENAME: header_field_keys
     column_widths: dict[str, float] = {}
     fields: list[FieldSchema]
 
     @model_validator(mode="after")
     def get_header_depth(self) -> "DataGridSchema":
         self.header_depth = len(self.datagrid_index_name)
-        return self
-
-    @computed_field
-    def header(self) -> list[ty.Union[str, list[str]]]:
-        return [
-            [getattr(f, din) for f in self.fields] for din in self.datagrid_index_name
+        self.header = [
+            [getattr(f, nm) for f in self.fields] for nm in self.datagrid_index_name
         ]
+        return self
 
     @computed_field
     def map_name_header(self) -> dict[str, ty.Union[str, list[str]]]:
@@ -330,7 +317,7 @@ class DataGridSchema(DataGridMetaData):
             }
         elif len(self.datagrid_index_name) > 1:
             return {
-                f.name: [getattr(f, din) for din in self.datagrid_index_name]
+                f.name: [getattr(f, nm) for nm in self.datagrid_index_name]
                 for f in self.fields
             }
         else:
@@ -356,6 +343,10 @@ def py2xl_formula(formula, map_names):
     return "= " + formula
 
 
+DATETIME_FORMAT = {"num_format": 'yyyy-dd-mmThh:mm"+00:00"'}
+DATE_FORMAT = {"num_format": "yyyy-dd-mm"}
+
+
 class XlTableWriter(BaseModel):
     gridschema: DataGridSchema
     data: dict[str, list]
@@ -363,17 +354,17 @@ class XlTableWriter(BaseModel):
     header_sections: list = ["section", "category"]  # used to colour code only
     xy: tuple[int, int] = 0, 0  # row, col
     xy_arrays: dict[str, tuple[int, int]] = {"a": (0, 0)}
+    format_arrays: dict[str, str] = Field({})  # col-name: format
+    comment_arrays: dict[str, str] = Field({})  # col-name: comment
     rng_arrays: dict[str, tuple[int, int, int, int]] = {"a": (0, 0, 0, 0)}
-    xy_headers: list[tuple[int, int]] = [
-        (0, 0)
-    ]  # ty.Optional[dict[str, tuple[int, int]]] = None
+    xy_headers: list[tuple[int, int]] = [(0, 0)]
     rng_headers: list[tuple[int, int, int, int]] = [(0, 0, 0, 0)]
     format_headers: list = [None]
     tbl_range: tuple[int, int, int, int] = (0, 0, 0, 0)
     tbl_headers: ty.Optional[list[dict]] = None
     validation_arrays: ty.Optional[dict[str, dict]] = None
     formula_arrays: dict[str, str] = {}
-    formats: dict[str, dict] = {}
+    formats: dict[str, dict] = {"datetime": DATETIME_FORMAT, "date": DATE_FORMAT}
     conditional_formats: list[dict] = []
     hide_gridlines: Annotated[int, annotated_types.Interval(ge=0, le=2)] = (
         2  # hidden by default
@@ -431,7 +422,7 @@ class XlTableWriter(BaseModel):
             } | {
                 f.name: getattr(f, "xl_formula")
                 for f in self.gridschema.fields
-                if hasattr(f, "xl_formula")
+                if hasattr(f, "xl_formula") and getattr(f, "xl_formula") is not None
             }  # formula override (normally empty)
 
         else:  # build a transposed xl table
@@ -484,6 +475,29 @@ class XlTableWriter(BaseModel):
         self.validation_arrays = {
             f.name: get_xl_constraints(f) for f in self.gridschema.fields
         }
+        dates = [f.name for f in self.gridschema.fields if f.format == "date"]
+        date_times = [f.name for f in self.gridschema.fields if f.format == "date-time"]
+        for d in dates:
+            self.comment_arrays[d] = [
+                (
+                    "date is represented as a string and must have the following format: ",
+                    DATE_FORMAT["num_format"],
+                ),
+                {"visible": False},
+            ]
+        for d in date_times:
+            self.comment_arrays[d] = [
+                (
+                    "datetime is represented as a string and must have the following format: ",
+                    DATETIME_FORMAT["num_format"],
+                ),
+                {"visible": False},
+            ]
+
+        # for d in date_times:
+        #     self.format_arrays[d] = "datetime"
+        # for d in dates:
+        #     self.format_arrays[d] = "date"
         return self
 
 
@@ -540,6 +554,7 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     header_border = {"right": 5} if is_t else {"bottom": 5}
     formats = {k: workbook.add_format(v) for k, v in xl_tbl.formats.items()}
     conditional_formats = []
+
     for c in xl_tbl.conditional_formats:
         di = c[4]
         f = di["format"]
@@ -556,6 +571,9 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     )
     header_white_cell_format = workbook.add_format(dict(font_color="#FFFFFF"))
 
+    # special formats for arrays (mostly used for datetime)
+    # for k, v in xl_tbl.format_arrays.items():
+
     # make table --------------------------
 
     get_name = lambda n, hd: f"Column{n}" if n >= hd else headers[n]
@@ -566,6 +584,7 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     formula_columns = []
     if is_t:  # transposed - with headers
         columns = [{"header": c} for c in column_labels]
+
         options = dict(
             style="Table Style Light 1",
             header_row=True,
@@ -588,6 +607,11 @@ def write_table(workbook, xl_tbl: XlTableWriter):
                 formula_columns += [k]
                 columns[k]["formula"] = xl_tbl.formula_arrays[k]
                 columns[k]["format"] = calc_cell_format
+
+        # for k, v in xl_tbl.format_arrays.items():
+        #     columns[k]["format"] = formats[v]
+        # ^ TODO: formatting dates and datetime as numeric with excel string formatting
+
         options = dict(
             style="Table Style Light 1",
             header_row=True,
@@ -639,9 +663,15 @@ def write_table(workbook, xl_tbl: XlTableWriter):
         y += hd
         write_array(
             *(x, y),
-            column_labels[hd : len(column_labels) - (hd + 1)],
+            column_labels[hd : len(column_labels) - (hd)],
             header_white_cell_format,
         )
+
+    # write array comments
+    for k, v in xl_tbl.comment_arrays.items():
+        cell = xl_tbl.xy_arrays[k]
+        worksheet.write_comment(xl_rowcol_to_cell(*cell), *v)
+
     worksheet.freeze_panes(*freeze_panes)
     worksheet.autofit()
     worksheet.hide_gridlines(xl_tbl.hide_gridlines)

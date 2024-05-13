@@ -5,6 +5,8 @@ from pydantic import (
     ConfigDict,
     computed_field,
     StringConstraints,
+    NaiveDatetime,
+    # NaiveDate,
 )
 from enum import Enum
 from typing_extensions import Annotated
@@ -36,7 +38,9 @@ class Test(BaseModel):
     d_enum: MyColor = Field(json_schema_extra=dict(section="unicode"))
     e_bool: bool = Field(True, json_schema_extra=dict(section="boolean"))
     f_date: date = Field(date.today(), json_schema_extra=dict(section="date"))
-    g_datetime: datetime = Field(datetime.now(), json_schema_extra=dict(section="date"))
+    # g_datetime: NaiveDatetime = Field(
+    #     datetime.now(), json_schema_extra=dict(section="date")
+    # )
 
     @computed_field(
         description="calc value",
