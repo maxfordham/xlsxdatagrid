@@ -1,16 +1,20 @@
-from python_calamine import CalamineWorkbook, CalamineSheet
-import typing as ty
-from pydantic import BaseModel
-from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
-from stringcase import snakecase
-from pathlib import Path
-
-from tempfile import TemporaryDirectory
-from datamodel_code_generator import InputFileType, generate
-from datamodel_code_generator import DataModelType
+# std libs
 import importlib.util
 import sys
 import json
+import typing as ty
+from pathlib import Path
+from datetime import timezone
+from tempfile import TemporaryDirectory
+
+# 3rd party
+from python_calamine import CalamineWorkbook, CalamineSheet
+from datamodel_code_generator import InputFileType, generate, DataModelType
+from pydantic import BaseModel, create_model, AwareDatetime
+from stringcase import snakecase
+
+# local
+from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 
 
 def pydantic_model_from_json_schema(json_schema: str) -> ty.Type[BaseModel]:
@@ -78,16 +82,115 @@ def get_jsonschema(metadata: DataGridMetaData) -> dict:
     pass
 
 
+def make_datetime_tz_aware(data, pydantic_model):
+
+    def field_is_aware_datetime(field):
+        if hasattr(field.annotation, "__args__"):
+            if AwareDatetime in field.annotation.__args__:
+                return True
+            else:
+                return False
+        elif isinstance(field.annotation, AwareDatetime):
+            return True
+        else:
+            return False
+
+    row_model = pydantic_model.model_fields["root"].annotation.__args__[0]
+    keys = [k for k, v in row_model.model_fields.items() if field_is_aware_datetime(v)]
+    if len(keys) > 0:
+        return [d | {k: d[k].replace(tzinfo=timezone.utc) for k in keys} for d in data]
+    else:
+        return data
+
+
+# def parse_timedelta(data, pydantic_model):
+
+#     def field_timedelta(field):
+#         if hasattr(field.annotation, "__args__"):
+#             if timedelta in field.annotation.__args__:
+#                 return True
+#             else:
+#                 return False
+#         elif isinstance(field.annotation, timedelta):
+#             return True
+#         else:
+#             return False
+
+#     row_model = pydantic_model.model_fields["root"].annotation.__args__[0]
+#     timedeltas = {k: v for k, v in row_model.model_fields.items() if field_timedelta(v)}
+#     if len(timedeltas) > 0:
+#         keys = list(timedeltas.keys())
+#         return [d | {k: timedelta(d[k]) for k in keys} for d in data]
+#     else:
+#         return data
+from jsonref import replace_refs
+from xlsxdatagrid.xlsxdatagrid import get_duration
+from datetime import timedelta
+
+
+def parse_timedelta(data, json_schema):
+
+    pr = replace_refs(json_schema)["items"]["properties"]
+    keys = [k for k, v in pr.items() if "format" in v and v["format"] == "duration"]
+
+    if len(keys) > 0:
+        return [d | {k: get_duration(d[k]) for k in keys} for d in data]
+    else:
+        return data
+
+
+def get_timedelta_fields(schema: dict) -> list[str]:
+    pr = replace_refs(schema)["items"]["properties"]
+    return [k for k, v in pr.items() if "format" in v and v["format"] == "duration"]
+
+
+def update_timedelta_fields(model: BaseModel, timedelta_fields: list[str]) -> BaseModel:
+    """returns a new pydantic model where serialization validators have been added to dates,
+    datetimes and durations for compatibility with excel"""
+    get_default = lambda obj: obj.default if hasattr(obj, "default") else ...
+    deltas = {
+        k: (timedelta, get_default(v))
+        for k, v in model.model_fields.items()
+        if k in timedelta_fields
+    } | {"__base__": model}
+    return create_model(model.__name__ + "New", **deltas)
+
+
+def update_timedelta(model: BaseModel, timedelta_fields: list[str]) -> BaseModel:
+    """returns a new pydantic model where serialization validators have been added to dates, datetimes and durations for compatibility with excel of array items"""
+    assert len(model.model_fields) == 1
+    assert list(model.model_fields.keys()) == ["root"]
+    item_model = model.model_fields["root"].annotation.__args__[0]
+    new_item_model = update_timedelta_fields(item_model, timedelta_fields)
+    new_model = create_model(
+        model.__name__ + "New",
+        **{"root": (ty.List[new_item_model], ...)} | {"__base__": model},
+    )
+    return new_model
+
+
 def read_worksheet(
     worksheet: CalamineSheet,
     get_jsonschema: ty.Optional[ty.Callable[[DataGridMetaData], dict]] = None,
 ) -> list[dict]:
+
     data = worksheet.to_python(skip_empty_area=True)
     data, metadata = read_data(data)
     if get_jsonschema is not None:
         json_schema = get_jsonschema(metadata)
         if json_schema is not None:
+            timedelta_fields = get_timedelta_fields(json_schema)
             pydantic_model = pydantic_model_from_json_schema(json_schema)
+            if len(timedelta_fields) > 0:
+                pydantic_model = update_timedelta(pydantic_model, timedelta_fields)
+                # ^ HACK: convert timedelta manually as generater pydantic model can't manage...
+                #   REF: https://github.com/koxudaxi/datamodel-code-generator/issues/1624
+
+            data = make_datetime_tz_aware(data, pydantic_model)
+            # ^ HACK: assume utc time for all datetimes as excel doesn't support tz...
+            # data = parse_timedelta(data, json_schema)
+            # ^ HACK: convert timedelta manually as generater pydantic model can't manage...
+
             return pydantic_model.model_validate(data).model_dump(mode="json")
         else:
             return data

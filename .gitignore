@@ -6,3 +6,5 @@ src/xlsxdatagrid/__about__.py
 reference/example*
 *.xlsx
 reference/*.xlsx
+docs/.ipynb_checkpoints/*
+.virtual_documents/*
