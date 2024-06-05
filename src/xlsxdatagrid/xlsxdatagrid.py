@@ -17,8 +17,8 @@ import typing as ty
 from xlsxdatagrid.colours import get_color_pallette
 from pydantic_extra_types.color import Color
 from typing_extensions import Annotated
-from datetime import datetime
-from xlsxwriter.utility import xl_rowcol_to_cell
+from datetime import datetime, date
+from xlsxwriter.utility import xl_rowcol_to_cell, datetime_to_excel_datetime
 
 # https://specs.frictionlessdata.io//table-schema/
 name_doc = """The field descriptor MUST contain a name property.
@@ -137,6 +137,17 @@ XL_TABLE_COLUMNS_PROPERTIES = (
     "total_value",
     "format",
 )
+
+
+DATETIME_STR = 'yyyy-dd-mmThh:mm:ss"+00:00"'
+DATE_STR = "yyyy-dd-mm"
+TIME_STR = 'hh:mm:ss"+00:00"'
+DURATION_STR = '"P"[h]:mm:ss'
+
+DATETIME_FORMAT = {"num_format": DATETIME_STR}
+DATE_FORMAT = {"num_format": DATE_STR}
+TIME_FORMAT = {"num_format": TIME_STR}
+DURATION_FORMAT = {"num_format": DURATION_STR}
 
 
 def get_numeric_constraints(di):
@@ -343,8 +354,29 @@ def py2xl_formula(formula, map_names):
     return "= " + formula
 
 
-DATETIME_FORMAT = {"num_format": 'yyyy-dd-mmThh:mm"+00:00"'}
-DATE_FORMAT = {"num_format": "yyyy-dd-mm"}
+def convert_date_to_excel_ordinal(d: date, offset: int = 693594):
+    # the offset date value for the date of 1900-01-00 = 693594
+    return d.toordinal() - offset
+
+
+from pydantic import RootModel
+from datetime import time, timedelta
+
+
+def get_datetime(d):
+    return RootModel[datetime](d).model_dump()
+
+
+def get_time(d):
+    return RootModel[time](d).model_dump()
+
+
+def get_date(d):
+    return RootModel[date](d).model_dump()
+
+
+def get_duration(d):
+    return RootModel[timedelta](d).model_dump()
 
 
 class XlTableWriter(BaseModel):
@@ -364,12 +396,18 @@ class XlTableWriter(BaseModel):
     tbl_headers: ty.Optional[list[dict]] = None
     validation_arrays: ty.Optional[dict[str, dict]] = None
     formula_arrays: dict[str, str] = {}
-    formats: dict[str, dict] = {"datetime": DATETIME_FORMAT, "date": DATE_FORMAT}
+    formats: dict[str, dict] = {
+        "datetime": DATETIME_FORMAT,
+        "date": DATE_FORMAT,
+        "time": TIME_FORMAT,
+        "duration": DURATION_FORMAT,
+    }
     conditional_formats: list[dict] = []
     hide_gridlines: Annotated[int, annotated_types.Interval(ge=0, le=2)] = (
         2  # hidden by default
     )
     metadata: str = ""
+    # length: int = 0
 
     @model_validator(mode="after")
     def build(self) -> "XlTableWriter":
@@ -477,27 +515,34 @@ class XlTableWriter(BaseModel):
         }
         dates = [f.name for f in self.gridschema.fields if f.format == "date"]
         date_times = [f.name for f in self.gridschema.fields if f.format == "date-time"]
-        for d in dates:
-            self.comment_arrays[d] = [
-                (
-                    "date is represented as a string and must have the following format: ",
-                    DATE_FORMAT["num_format"],
-                ),
-                {"visible": False},
-            ]
-        for d in date_times:
-            self.comment_arrays[d] = [
-                (
-                    "datetime is represented as a string and must have the following format: ",
-                    DATETIME_FORMAT["num_format"],
-                ),
-                {"visible": False},
-            ]
+        durations = [f.name for f in self.gridschema.fields if f.format == "duration"]
+        times = [f.name for f in self.gridschema.fields if f.format == "time"]
 
-        # for d in date_times:
-        #     self.format_arrays[d] = "datetime"
-        # for d in dates:
-        #     self.format_arrays[d] = "date"
+        for d in date_times:
+            self.data[d] = [
+                datetime_to_excel_datetime(get_datetime(v), False, True)
+                for v in self.data[d]
+            ]
+            self.format_arrays[d] = "datetime"
+        for d in dates:
+            self.data[d] = [
+                datetime_to_excel_datetime(get_datetime(v), False, True)
+                for v in self.data[d]
+            ]
+            self.format_arrays[d] = "date"
+        for d in times:
+            self.data[d] = [
+                datetime_to_excel_datetime(get_time(v), False, True)
+                for v in self.data[d]
+            ]
+            self.format_arrays[d] = "time"
+        for d in durations:
+            self.data[d] = [
+                datetime_to_excel_datetime(get_duration(v), False, True)
+                for v in self.data[d]
+            ]
+            self.format_arrays[d] = "duration"
+
         return self
 
 
@@ -530,7 +575,7 @@ def get_data_and_schema(pyd_obj: ty.Type[BaseModel]):
 
     gridschema["format"] = "dataframe"
     gridschema = {k: v for k, v in gridschema.items() if k not in ["$defs", "items"]}
-    data = pyd_obj.model_dump(mode="json")
+    data = pyd_obj.model_dump(mode="json")  # mode="json"
     data = {k: [dic[k] for dic in data] for k in data[0]}
     return data, DataGridSchema(**gridschema)
 
@@ -540,7 +585,8 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     worksheet = workbook.add_worksheet(name=name)
     is_t = xl_tbl.gridschema.is_transposed
     headers = xl_tbl.gridschema.datagrid_index_name
-    hd = len(headers)  # header depth
+    ix_nm = xl_tbl.gridschema.datagrid_index_name
+    hd = len(ix_nm)  # header depth
     label_index = xl_tbl.xy[0] if is_t else xl_tbl.xy[1]
     write_array = worksheet.write_row if is_t else worksheet.write_column
     write_header = worksheet.write_row if not is_t else worksheet.write_column
@@ -553,6 +599,7 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     freeze_panes = (0, header_index + 1) if is_t else (header_index + 1, 0)
     header_border = {"right": 5} if is_t else {"bottom": 5}
     formats = {k: workbook.add_format(v) for k, v in xl_tbl.formats.items()}
+    format_arrays = {k: formats[v] for k, v in xl_tbl.format_arrays.items()}
     conditional_formats = []
 
     for c in xl_tbl.conditional_formats:
@@ -575,11 +622,9 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     # for k, v in xl_tbl.format_arrays.items():
 
     # make table --------------------------
-
-    get_name = lambda n, hd: f"Column{n}" if n >= hd else headers[n]
-    column_labels = [
-        get_name(n, hd) for n in range(0, len(xl_tbl.gridschema.field_names))
-    ]
+    length = len(list(xl_tbl.data.values())[0]) + len(ix_nm)
+    get_name = lambda n, hd: f"Column{n}" if n >= hd else ix_nm[n]
+    column_labels = [get_name(n, hd) for n in range(0, length)]
 
     formula_columns = []
     if is_t:  # transposed - with headers
@@ -608,10 +653,12 @@ def write_table(workbook, xl_tbl: XlTableWriter):
                 columns[k]["formula"] = xl_tbl.formula_arrays[k]
                 columns[k]["format"] = calc_cell_format
 
-        # for k, v in xl_tbl.format_arrays.items():
-        #     columns[k]["format"] = formats[v]
+        for k, v in xl_tbl.format_arrays.items():
+            columns[k]["format"] = formats[v]
         # ^ TODO: formatting dates and datetime as numeric with excel string formatting
-
+        columns["a_int"]["format"] = workbook.add_format(
+            {"num_format": "[$$-409]#,##0.00"}
+        )
         options = dict(
             style="Table Style Light 1",
             header_row=True,
@@ -621,14 +668,19 @@ def write_table(workbook, xl_tbl: XlTableWriter):
 
     options = options | {"name": name}
     worksheet.add_table(*xl_tbl.tbl_range, options)
+    # worksheet.add_table(*xl_tbl.tbl_range, options)
     # NOTE: if you write a table to excel with a header - the table range includes the header.
 
     # -------------------------------------
+    # write arrays
     for k, v in xl_tbl.xy_arrays.items():
         if k not in formula_columns:
-            write_array(*v, xl_tbl.data[k])
+            if k in format_arrays:
+                write_array(*v, xl_tbl.data[k], format_arrays[k])
+            else:
+                write_array(*v, xl_tbl.data[k])
 
-    if len(xl_tbl.gridschema.datagrid_index_name) > 1:
+    if len(ix_nm) > 1:
         if xl_tbl.gridschema.is_transposed:
             rngs, headers = xl_tbl.xy_headers, xl_tbl.gridschema.header
         else:
@@ -663,7 +715,7 @@ def write_table(workbook, xl_tbl: XlTableWriter):
         y += hd
         write_array(
             *(x, y),
-            column_labels[hd : len(column_labels) - (hd)],
+            column_labels[hd : len(column_labels)],
             header_white_cell_format,
         )
 
@@ -677,4 +729,5 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     worksheet.hide_gridlines(xl_tbl.hide_gridlines)
     # write metadata
     worksheet.write(*xl_tbl.xy, xl_tbl.metadata, header_label_cell_format)
+
     return None

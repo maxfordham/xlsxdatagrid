@@ -71,7 +71,6 @@ def test_load_model_from_json_schema():
 
 
 def test_get_jsonschema():
-
     metadata = DataGridMetaData(template_name="TestArray")
     jsonschema = get_jsonschema(metadata)
     assert jsonschema["title"] == "TestArray"

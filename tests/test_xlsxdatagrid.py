@@ -5,15 +5,21 @@ from pydantic import (
     ConfigDict,
     computed_field,
     StringConstraints,
+    PlainSerializer,
     NaiveDatetime,
     # NaiveDate,
 )
 from enum import Enum
 from typing_extensions import Annotated
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 import xlsxwriter as xw
 from .constants import PATH_XL, PATH_XL_TRANSPOSED
-from xlsxdatagrid.xlsxdatagrid import write_table, get_data_and_schema, XlTableWriter
+from xlsxdatagrid.xlsxdatagrid import (
+    write_table,
+    get_data_and_schema,
+    XlTableWriter,
+    convert_date_to_excel_ordinal,
+)
 
 
 class MyColor(Enum):
@@ -37,10 +43,17 @@ class Test(BaseModel):
     ] = Field("string", json_schema_extra=dict(section="unicode"))
     d_enum: MyColor = Field(json_schema_extra=dict(section="unicode"))
     e_bool: bool = Field(True, json_schema_extra=dict(section="boolean"))
-    f_date: date = Field(date.today(), json_schema_extra=dict(section="date"))
-    # g_datetime: NaiveDatetime = Field(
-    #     datetime.now(), json_schema_extra=dict(section="date")
-    # )
+    f_date: date = Field(date.today(), json_schema_extra=dict(section="datetime"))
+    g_datetime: NaiveDatetime = Field(
+        datetime.now(), json_schema_extra=dict(section="datetime")
+    )
+    h_time: time = Field(
+        datetime.now().time(), json_schema_extra=dict(section="datetime")
+    )
+    i_duration: timedelta = Field(
+        timedelta(days=0, hours=2, minutes=33, seconds=3),
+        json_schema_extra=dict(section="datetime"),
+    )
 
     @computed_field(
         description="calc value",
