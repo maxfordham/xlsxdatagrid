@@ -1,3 +1,7 @@
+from enum import Enum
+from typing_extensions import Annotated
+from datetime import date, datetime, time, timedelta
+
 from pydantic import (
     BaseModel,
     RootModel,
@@ -9,15 +13,21 @@ from pydantic import (
     NaiveDatetime,
     # NaiveDate,
 )
-from enum import Enum
-from typing_extensions import Annotated
-from datetime import date, datetime, time, timedelta
+import pytest
 import xlsxwriter as xw
-from .constants import PATH_XL, PATH_XL_TRANSPOSED
+
+from .constants import (
+    PATH_XL,
+    PATH_XL_TRANSPOSED,
+    PATH_XL_FROM_SCHEMA,
+    PATH_XL_FROM_SCHEMA_TRANSPOSED,
+)
 from xlsxdatagrid.xlsxdatagrid import (
     write_table,
     get_data_and_schema,
+    convert_records_to_datagrid_schema,
     XlTableWriter,
+    DataGridSchema,
     convert_date_to_excel_ordinal,
 )
 
@@ -80,6 +90,132 @@ class TestArrayTransposed(TestArray):
     )
 
 
+TEST_ARRAY_SCHEMA = {
+    "$defs": {
+        "MyColor": {
+            "enum": ["red", "green", "blue"],
+            "title": "MyColor",
+            "type": "string",
+        },
+        "Test": {
+            "properties": {
+                "a_constrainedint": {
+                    "default": 3,
+                    "maximum": 10,
+                    "minimum": 0,
+                    "section": "numeric",
+                    "title": "A " "Constrainedint",
+                    "type": "integer",
+                },
+                "a_int": {
+                    "default": 1,
+                    "section": "numeric",
+                    "title": "A Int",
+                    "type": "integer",
+                },
+                "b_calcfloat": {
+                    "description": "calc value",
+                    "formula": "a_int * b_float",
+                    "readOnly": True,
+                    "section": "numeric",
+                    "title": "B Calcfloat",
+                    "type": "number",
+                },
+                "b_float": {
+                    "default": 1.5,
+                    "section": "numeric",
+                    "title": "B Float",
+                    "type": "number",
+                },
+                "c_constrainedstr": {
+                    "default": "string",
+                    "maxLength": 10,
+                    "section": "unicode",
+                    "title": "C " "Constrainedstr",
+                    "type": "string",
+                },
+                "c_str": {
+                    "default": "string",
+                    "section": "unicode",
+                    "title": "C Str",
+                    "type": "string",
+                },
+                "d_enum": {
+                    "allOf": [{"$ref": "#/$defs/MyColor"}],
+                    "section": "unicode",
+                },
+                "e_bool": {
+                    "default": True,
+                    "section": "boolean",
+                    "title": "E Bool",
+                    "type": "boolean",
+                },
+                "f_date": {
+                    "default": "2024-06-06",
+                    "format": "date",
+                    "section": "datetime",
+                    "title": "F Date",
+                    "type": "string",
+                },
+                "g_datetime": {
+                    "default": "2024-06-06T10:42:54.822063",
+                    "format": "date-time",
+                    "section": "datetime",
+                    "title": "G Datetime",
+                    "type": "string",
+                },
+                "h_time": {
+                    "default": "10:42:54.822257",
+                    "format": "time",
+                    "section": "datetime",
+                    "title": "H Time",
+                    "type": "string",
+                },
+                "i_duration": {
+                    "default": "PT2H33M3S",
+                    "format": "duration",
+                    "section": "datetime",
+                    "title": "I Duration",
+                    "type": "string",
+                },
+            },
+            "required": ["d_enum", "b_calcfloat"],
+            "title": "Test",
+            "type": "object",
+        },
+    },
+    "datagrid_index_name": ("section", "title", "name"),
+    "is_transposed": False,
+    "items": {"$ref": "#/$defs/Test"},
+    "title": "TestArrayTransposed",
+    "type": "array",
+}
+
+TEST_ARRAY_SCHEMA_TRANSPOSED = {
+    k: (lambda k, v: True if k == "is_transposed" else v)(k, v)
+    for k, v in TEST_ARRAY_SCHEMA.items()
+}
+
+ARRAY_DATA = {
+    "a_int": [1, 2, 3],
+    "a_constrainedint": [3, 3, 3],
+    "b_float": [1.5, 2.5, 3.5],
+    "c_str": ["string", "asdf", "bluey"],
+    "c_constrainedstr": ["string", "string", "string"],
+    "d_enum": ["green", "green", "blue"],
+    "e_bool": [True, True, False],
+    "f_date": ["2024-06-06", "2024-06-06", "2024-06-06"],
+    "g_datetime": [
+        "2024-06-06T10:08:52.078770",
+        "2024-06-06T10:08:52.078770",
+        "2024-06-06T10:08:52.078770",
+    ],
+    "h_time": ["10:08:52.078959", "10:08:52.078959", "10:08:52.078959"],
+    "i_duration": ["PT2H33M3S", "PT2H33M3S", "PT2H33M3S"],
+    "b_calcfloat": [1.5, 5.0, 10.5],
+}
+
+
 def get_test_array(is_transposed=False):
     t1, t2, t3 = (
         Test(d_enum=MyColor.GREEN),
@@ -93,25 +229,44 @@ def get_test_array(is_transposed=False):
         return TestArray([t1, t2, t3])
 
 
-def test_write_table():
-    PATH_XL.unlink(missing_ok=True)
+def get_pydantic_test_inputs(is_transposed=False):
+
+    if is_transposed:
+        return PATH_XL_TRANSPOSED, get_test_array(is_transposed)
+    else:
+        return PATH_XL, get_test_array(is_transposed)
+
+
+@pytest.mark.parametrize("is_transposed", [True, False])
+def test_pydantic_object_write_table(is_transposed):
+    fpth_xl, pyd_obj = get_pydantic_test_inputs(is_transposed=is_transposed)
+
+    fpth_xl.unlink(missing_ok=True)
     pyd_obj = get_test_array()
     data, gridschema = get_data_and_schema(pyd_obj)
     xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
-    workbook = xw.Workbook(str(PATH_XL))
+    workbook = xw.Workbook(str(fpth_xl))
     write_table(workbook, xl_tbl)
     workbook.close()
-    assert PATH_XL.is_file()
-    print("done")
+    assert fpth_xl.is_file()
 
 
-def test_write_table_transposed():
-    PATH_XL_TRANSPOSED.unlink(missing_ok=True)
-    pyd_obj = get_test_array(is_transposed=True)
-    data, gridschema = get_data_and_schema(pyd_obj)
-    xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
-    workbook = xw.Workbook(str(PATH_XL_TRANSPOSED))
+def get_schema_test_inputs(is_transposed=False):
+    if is_transposed:
+        return PATH_XL_FROM_SCHEMA_TRANSPOSED, TEST_ARRAY_SCHEMA_TRANSPOSED, ARRAY_DATA
+    else:
+        return PATH_XL_FROM_SCHEMA, TEST_ARRAY_SCHEMA, ARRAY_DATA
+
+
+@pytest.mark.parametrize("is_transposed", [True, False])
+def test_schema_and_data_write_table(is_transposed):
+    fpth_xl, schema, data = get_schema_test_inputs(is_transposed=is_transposed)
+
+    fpth_xl.unlink(missing_ok=True)
+    gridschema = convert_records_to_datagrid_schema(schema)
+    dgschema = DataGridSchema(**gridschema)
+    xl_tbl = XlTableWriter(gridschema=gridschema, data=data)
+    workbook = xw.Workbook(str(fpth_xl))
     write_table(workbook, xl_tbl)
     workbook.close()
-    assert PATH_XL_TRANSPOSED.is_file()
-    print("done")
+    assert fpth_xl.is_file()
