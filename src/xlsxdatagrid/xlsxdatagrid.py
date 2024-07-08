@@ -411,6 +411,14 @@ class XlTableWriter(BaseModel):
 
     @model_validator(mode="after")
     def build(self) -> "XlTableWriter":
+        # ensure data and key col names in same order
+        if self.gridschema.field_names != list(self.data.keys()):
+            self.data = {
+                l: self.data[l]
+                for l in self.gridschema.field_names
+                if l in self.data.keys()
+            }
+
         self.metadata = self.gridschema.metadata_fstring.format(
             **self.gridschema.model_dump()
         )
@@ -543,6 +551,7 @@ class XlTableWriter(BaseModel):
             ]
             self.format_arrays[d] = "duration"
 
+
         return self
 
 
@@ -555,9 +564,9 @@ def flatten_allOf(di: dict) -> dict:
         return di
 
 
-def get_data_and_schema(pyd_obj: ty.Type[BaseModel]):
+def convert_records_to_datagrid_schema(schema: dict):
     li_constraints = list(Constraints.__annotations__.keys())
-    gridschema = replace_refs(pyd_obj.model_json_schema(mode="serialization"))
+    gridschema = replace_refs(schema)
     gridschema["fields"] = [
         flatten_allOf(v) | {"name": k}
         for k, v in gridschema["items"]["properties"].items()
@@ -575,8 +584,18 @@ def get_data_and_schema(pyd_obj: ty.Type[BaseModel]):
 
     gridschema["format"] = "dataframe"
     gridschema = {k: v for k, v in gridschema.items() if k not in ["$defs", "items"]}
+    return gridschema
+
+
+def convert_list_records_to_dict_arrays(data: list[dict]) -> dict[str, list]:
+    return {k: [dic[k] for dic in data] for k in data[0]}
+
+
+def get_data_and_schema(pyd_obj: ty.Type[BaseModel]) -> tuple[dict[str, list], dict]:
+    schema = pyd_obj.model_json_schema(mode="serialization")
+    gridschema = convert_records_to_datagrid_schema(schema)
     data = pyd_obj.model_dump(mode="json")  # mode="json"
-    data = {k: [dic[k] for dic in data] for k in data[0]}
+    data = convert_list_records_to_dict_arrays(data)
     return data, DataGridSchema(**gridschema)
 
 
