@@ -18,6 +18,7 @@ import xlsxwriter as xw
 
 from .constants import (
     PATH_XL,
+    PATH_XL_MANY_SHEETS,
     PATH_XL_TRANSPOSED,
     PATH_XL_FROM_SCHEMA,
     PATH_XL_FROM_SCHEMA_TRANSPOSED,
@@ -73,6 +74,22 @@ class Test(BaseModel):
         return self.a_int * self.b_float
 
 
+class Test1(BaseModel):
+    a_int: int = Field(1, json_schema_extra=dict(section="numeric"))
+    a_constrainedint: Annotated[int, Field(ge=0, le=10)] = Field(
+        3, json_schema_extra=dict(section="numeric")
+    )
+    b_float: float = Field(1.5, json_schema_extra=dict(section="numeric"))
+    c_str: str = Field("string", json_schema_extra=dict(section="unicode"))
+    c_constrainedstr: Annotated[
+        str,
+        StringConstraints(
+            max_length=10,
+        ),
+    ] = Field("string", json_schema_extra=dict(section="unicode"))
+    d_enum: MyColor = Field(json_schema_extra=dict(section="unicode"))
+
+
 class TestArray(RootModel):
     model_config = ConfigDict(
         json_schema_extra=dict(
@@ -80,6 +97,15 @@ class TestArray(RootModel):
         )
     )
     root: list[Test]
+
+
+class TestArray1(RootModel):
+    model_config = ConfigDict(
+        json_schema_extra=dict(
+            datagrid_index_name=("section", "title", "name"), is_transposed=False
+        )
+    )
+    root: list[Test1]
 
 
 class TestArrayTransposed(TestArray):
@@ -215,6 +241,14 @@ ARRAY_DATA = {
     "b_calcfloat": [1.5, 5.0, 10.5],
 }
 
+ARRAY_DATA1 = {k: v * 2 for k, v in ARRAY_DATA.items() if k in Test1.model_fields}
+
+
+def array_to_records(di):
+    length = len(list(di.values())[0])
+    keys = list(di.keys())
+    return [dict(zip(keys, [di[k][n] for k in keys])) for n in range(0, length)]
+
 
 def get_test_array(is_transposed=False):
     t1, t2, t3 = (
@@ -247,6 +281,26 @@ def test_pydantic_object_write_table(is_transposed):
     xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
     workbook = xw.Workbook(str(fpth_xl))
     write_table(workbook, xl_tbl)
+    workbook.close()
+    assert fpth_xl.is_file()
+
+
+def test_pydantic_objects_write_tables():
+    fpth_xl, pyd_obj = get_pydantic_test_inputs(is_transposed=False)
+    fpth_xl = PATH_XL_MANY_SHEETS
+    fpth_xl.unlink(missing_ok=True)
+    pyd_obj = TestArray(array_to_records(ARRAY_DATA))
+    pyd_obj1 = TestArray1(array_to_records(ARRAY_DATA1))
+
+    data, gridschema = get_data_and_schema(pyd_obj)
+    xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
+    workbook = xw.Workbook(str(fpth_xl))
+    write_table(workbook, xl_tbl)
+
+    data1, gridschema1 = get_data_and_schema(pyd_obj1)
+    xl_tbl1 = XlTableWriter(data=data1, gridschema=gridschema1)
+    write_table(workbook, xl_tbl1)
+
     workbook.close()
     assert fpth_xl.is_file()
 

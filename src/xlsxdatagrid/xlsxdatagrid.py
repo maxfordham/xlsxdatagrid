@@ -1,3 +1,4 @@
+import pathlib
 from annotated_types import doc
 import annotated_types
 from pydantic import (
@@ -551,7 +552,6 @@ class XlTableWriter(BaseModel):
             ]
             self.format_arrays[d] = "duration"
 
-
         return self
 
 
@@ -750,3 +750,31 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     worksheet.write(*xl_tbl.xy, xl_tbl.metadata, header_label_cell_format)
 
     return None
+
+
+def from_jsonschema_and_data(data: dict, gridschema: dict, fpth: pathlib.Path = None):
+
+    if fpth is None:
+        fpth = pathlib.Path(gridschema.title + ".xlsx")
+
+    xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
+    workbook = xw.Workbook(str(fpth))
+    write_table(workbook, xl_tbl)
+    workbook.close()
+    return fpth
+
+
+def from_pydantic_object(
+    pydantic_object: ty.Type[BaseModel], fpth: pathlib.Path = None
+) -> pathlib.Path:
+
+    data, gridschema = get_data_and_schema(pydantic_object)
+
+    return from_jsonschema_and_data(data, gridschema, fpth=fpth)
+
+
+def from_pydantic_objects(
+    pydantic_objects: list[ty.Type[BaseModel]], fpth: pathlib.Path
+) -> pathlib.Path:
+
+    pass
