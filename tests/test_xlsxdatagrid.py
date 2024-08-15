@@ -30,6 +30,7 @@ from xlsxdatagrid.xlsxdatagrid import (
     XlTableWriter,
     DataGridSchema,
     convert_date_to_excel_ordinal,
+    convert_list_records_to_dict_arrays,
 )
 
 
@@ -320,6 +321,34 @@ def test_schema_and_data_write_table(is_transposed):
     gridschema = convert_records_to_datagrid_schema(schema)
     dgschema = DataGridSchema(**gridschema)
     xl_tbl = XlTableWriter(gridschema=gridschema, data=data)
+    workbook = xw.Workbook(str(fpth_xl))
+    write_table(workbook, xl_tbl)
+    workbook.close()
+    assert fpth_xl.is_file()
+
+
+def test_schema_and_data_from_digital_schedules_api():
+    import requests
+    import jsonref
+    import pathlib
+
+    response = requests.get(
+        "https://aectemplater-dev.maxfordham.com/type_specs/project_revision/1/object/602/grid?override_units=true"
+    )
+    fpth_xl = pathlib.Path("./test.xlsx")
+    data = jsonref.replace_refs(response.json())
+    data_array = convert_list_records_to_dict_arrays(data["data"])
+
+    gridschema = convert_records_to_datagrid_schema(data["$schema"])
+    # HOTFIX: Replace all anyOfs with the first type
+    for field in gridschema["fields"]:
+        if "anyOf" in field.keys():
+            field["type"] = field["anyOf"][0]["type"]
+            field.pop("anyOf")
+    gridschema["datagrid_index_name"] = ("section", "unit", "title")
+    gridschema["is_transposed"] = False
+
+    xl_tbl = XlTableWriter(gridschema=gridschema, data=data_array)
     workbook = xw.Workbook(str(fpth_xl))
     write_table(workbook, xl_tbl)
     workbook.close()
