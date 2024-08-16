@@ -29,7 +29,7 @@ name_doc = """The field descriptor MUST contain a name property.
  However, since it should correspond to the name of the field in the data file it may be important to preserve case."""
 
 
-# NOT IN USE
+# NOT IN USE -------------------------------
 class HeaderStyling(BaseModel):  # matches ipydatagrid
     header_background_color: ty.Optional[Color] = Field(
         None, description="background color for all non-body cells (index and columns)"
@@ -52,30 +52,6 @@ class HeaderStyling(BaseModel):  # matches ipydatagrid
         description="border color of headers intersecting with selected area at column or row",
     )
 
-
-class Constraints(BaseModel):
-    minimum: ty.Optional[ty.Union[int, float]] = None
-    maximum: ty.Optional[ty.Union[int, float]] = None
-    exclusiveMinimum: ty.Optional[bool] = None
-    exclusiveMaximum: ty.Optional[bool] = None
-    enum: ty.Optional[list[ty.Any]] = None
-    maxLength: ty.Optional[int] = None
-    minLength: ty.Optional[int] = None
-
-
-NUMERIC_CONSTRAINTS = [
-    l for l in list(Constraints.__annotations__.keys()) if l != "enum"
-]
-LI_CONSTRAINTS = list(Constraints.__annotations__.keys())
-# https://xlsxwriter.readthedocs.io/working_with_data_validation.html#criteria
-
-MAP_TYPES_JSON_XL = {"integer": "integer", "float": "decimal", "date": "date"}
-
-PY2XL = {
-    "**": "^",
-    "!=": "<>",
-    # other simple arithemetic operators the same
-}
 
 XL_FORMAT_PROPERTIES = (
     "font_name",
@@ -129,6 +105,28 @@ XL_TABLE_PROPERTIES = (
 )
 # ^these are set at schema level for the whole table
 
+# ^ NOT IN USE -------------------------------
+
+
+class Constraints(BaseModel):
+    minimum: ty.Optional[ty.Union[int, float]] = None
+    maximum: ty.Optional[ty.Union[int, float]] = None
+    exclusiveMinimum: ty.Optional[bool] = None
+    exclusiveMaximum: ty.Optional[bool] = None
+    enum: ty.Optional[list[ty.Any]] = None
+    maxLength: ty.Optional[int] = None
+    minLength: ty.Optional[int] = None
+
+
+NUMERIC_CONSTRAINTS = [
+    l for l in list(Constraints.__annotations__.keys()) if l != "enum"
+]
+LI_CONSTRAINTS = list(Constraints.__annotations__.keys())
+# https://xlsxwriter.readthedocs.io/working_with_data_validation.html#criteria
+
+MAP_TYPES_JSON_XL = {"integer": "integer", "float": "decimal", "date": "date"}
+
+
 XL_TABLE_COLUMNS_PROPERTIES = (
     "header",
     "header_format",
@@ -149,6 +147,27 @@ DATETIME_FORMAT = {"num_format": DATETIME_STR}
 DATE_FORMAT = {"num_format": DATE_STR}
 TIME_FORMAT = {"num_format": TIME_STR}
 DURATION_FORMAT = {"num_format": DURATION_STR}
+
+PY2XL = {
+    "**": "^",
+    "!=": "<>",
+    # other simple arithemetic operators the same
+}
+
+
+def py2xl_formula(formula, map_names):
+    def replace(formula, di):
+
+        for k, v in di.items():
+            if k in formula:
+                formula = formula.replace(k, v)
+        return formula
+
+    map_table_names = {l: f"[@[{l}]]" for l in map_names.keys()}
+    formula = replace(formula, PY2XL)
+    formula = replace(formula, map_names)
+    formula = replace(formula, map_table_names)
+    return "= " + formula
 
 
 def get_numeric_constraints(di):
@@ -188,7 +207,7 @@ class FieldSchemaXl(FieldSchema):
     xl_formula: ty.Optional[str] = None
 
 
-def get_xl_constraints(f: FieldSchema):
+def get_xl_constraints(f: FieldSchema):  # TODO: write text for this
     if f.type == "boolean":
         return {
             "validate": "list",
@@ -340,21 +359,6 @@ class DataGridSchema(DataGridMetaData):
         return [f.name for f in self.fields]
 
 
-def py2xl_formula(formula, map_names):
-    def replace(formula, di):
-
-        for k, v in di.items():
-            if k in formula:
-                formula = formula.replace(k, v)
-        return formula
-
-    map_table_names = {l: f"[@[{l}]]" for l in map_names.keys()}
-    formula = replace(formula, PY2XL)
-    formula = replace(formula, map_names)
-    formula = replace(formula, map_table_names)
-    return "= " + formula
-
-
 def convert_date_to_excel_ordinal(d: date, offset: int = 693594):
     # the offset date value for the date of 1900-01-00 = 693594
     return d.toordinal() - offset
@@ -412,13 +416,6 @@ class XlTableWriter(BaseModel):
 
     @model_validator(mode="after")
     def build(self) -> "XlTableWriter":
-        # ensure data and key col names in same order
-        if self.gridschema.field_names != list(self.data.keys()):
-            self.data = {
-                l: self.data[l]
-                for l in self.gridschema.field_names
-                if l in self.data.keys()
-            }
 
         self.metadata = self.gridschema.metadata_fstring.format(
             **self.gridschema.model_dump()
@@ -427,9 +424,20 @@ class XlTableWriter(BaseModel):
         is_t = self.gridschema.is_transposed
         ix_nm = self.gridschema.datagrid_index_name  # column headings
         hd = self.gridschema.header_depth  # header depth
-        fd_nns = list(self.data.keys())  # field names
+        fd_nns = self.gridschema.field_names  # field names
         length = len(self.data[fd_nns[0]]) - 1  # length of data arrays
         self.format_headers = hd * [None]
+
+        # ensure data and key col names in same order
+        if self.gridschema.field_names != list(self.data.keys()):
+            self.data = {
+                l: (lambda l, data: data[l] if l in data.keys() else [None] * length)(
+                    l, self.data
+                )
+                for l in self.gridschema.field_names
+            }
+        assert self.gridschema.field_names == list(self.data.keys())
+        # TODO: allow option of only outputting fields which have data associated with them
 
         if is_t:
             x += 1
@@ -675,9 +683,6 @@ def write_table(workbook, xl_tbl: XlTableWriter):
         for k, v in xl_tbl.format_arrays.items():
             columns[k]["format"] = formats[v]
         # ^ TODO: formatting dates and datetime as numeric with excel string formatting
-        columns["a_int"]["format"] = workbook.add_format(
-            {"num_format": "[$$-409]#,##0.00"}
-        )
         options = dict(
             style="Table Style Light 1",
             header_row=True,
@@ -685,9 +690,10 @@ def write_table(workbook, xl_tbl: XlTableWriter):
             columns=list(columns.values()),
         )
 
-    options = options | {"name": name}
+    options = options  # | {"name": name}  # TODO: <- table name needs to not inc. spaces etc... update
+    # ^ a known table name will be important if / when we want to do lookups between tables...
+
     worksheet.add_table(*xl_tbl.tbl_range, options)
-    # worksheet.add_table(*xl_tbl.tbl_range, options)
     # NOTE: if you write a table to excel with a header - the table range includes the header.
 
     # -------------------------------------
@@ -748,7 +754,7 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     worksheet.hide_gridlines(xl_tbl.hide_gridlines)
     # write metadata
     worksheet.write(*xl_tbl.xy, xl_tbl.metadata, header_label_cell_format)
-
+    # worksheet.add_table(*xl_tbl.tbl_range, options)
     return None
 
 
@@ -762,6 +768,13 @@ def from_jsonschema_and_data(data: dict, gridschema: dict, fpth: pathlib.Path = 
     write_table(workbook, xl_tbl)
     workbook.close()
     return fpth
+
+
+def from_jsonschemas_and_datas(
+    data: list[dict], gridschema: list[dict], fpth: pathlib.Path = None
+):
+    assert len(data) == len(gridschema)
+    pass
 
 
 def from_pydantic_object(
