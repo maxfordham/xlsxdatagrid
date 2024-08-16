@@ -1,3 +1,5 @@
+import requests
+import pathlib
 from enum import Enum
 from typing_extensions import Annotated
 from datetime import date, datetime, time, timedelta
@@ -9,12 +11,13 @@ from pydantic import (
     ConfigDict,
     computed_field,
     StringConstraints,
-    PlainSerializer,
     NaiveDatetime,
     # NaiveDate,
 )
 import pytest
 import xlsxwriter as xw
+import jsonref
+
 
 from .constants import (
     PATH_XL,
@@ -22,6 +25,7 @@ from .constants import (
     PATH_XL_TRANSPOSED,
     PATH_XL_FROM_SCHEMA,
     PATH_XL_FROM_SCHEMA_TRANSPOSED,
+    PATH_XL_FROM_API,
 )
 from xlsxdatagrid.xlsxdatagrid import (
     write_table,
@@ -29,7 +33,7 @@ from xlsxdatagrid.xlsxdatagrid import (
     convert_records_to_datagrid_schema,
     XlTableWriter,
     DataGridSchema,
-    convert_date_to_excel_ordinal,
+    convert_list_records_to_dict_arrays,
 )
 
 
@@ -320,6 +324,36 @@ def test_schema_and_data_write_table(is_transposed):
     gridschema = convert_records_to_datagrid_schema(schema)
     dgschema = DataGridSchema(**gridschema)
     xl_tbl = XlTableWriter(gridschema=gridschema, data=data)
+    workbook = xw.Workbook(str(fpth_xl))
+    write_table(workbook, xl_tbl)
+    workbook.close()
+    assert fpth_xl.is_file()
+
+
+def test_schema_and_data_from_digital_schedules_api():
+    fpth_xl = PATH_XL_FROM_API
+    response = requests.get(
+        "https://aectemplater-dev.maxfordham.com/type_specs/project_revision/1/object/602/grid?override_units=true"
+    )
+    assert (
+        response.status_code == 200
+    ), f"API request failed with status code {response.status_code}"
+
+    fpth_xl = pathlib.Path("./test.xlsx")
+    data = jsonref.replace_refs(response.json())
+    data["data"] = data["data"] + data["data"]
+    data_array = convert_list_records_to_dict_arrays(data["data"])
+
+    gridschema = convert_records_to_datagrid_schema(data["$schema"])
+    # HOTFIX: Replace all anyOfs with the first type
+    for field in gridschema["fields"]:
+        if "anyOf" in field.keys():
+            field["type"] = field["anyOf"][0]["type"]
+            field.pop("anyOf")
+    gridschema["datagrid_index_name"] = ("section", "unit", "name")
+    gridschema["is_transposed"] = True
+
+    xl_tbl = XlTableWriter(gridschema=gridschema, data=data_array)
     workbook = xw.Workbook(str(fpth_xl))
     write_table(workbook, xl_tbl)
     workbook.close()
