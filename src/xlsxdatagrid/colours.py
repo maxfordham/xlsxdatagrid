@@ -9,6 +9,7 @@ from palettable.tableau import (
     GreenOrange_12,
 )
 from pydantic_extra_types.color import Color
+import logging
 
 BANG_WONG_COLORS = dict(
     black=Color("RGB(0, 0, 0)"),
@@ -52,16 +53,33 @@ XLSXDATAGRID_STANDARD_PALLETTES = {
 def get_color_pallette(
     length, palettes_in_use, palettes=XLSXDATAGRID_STANDARD_PALLETTES
 ):
+    _max = list(XLSXDATAGRID_STANDARD_PALLETTES.keys())[-1][1][1]
+    _max_pallete = list(palettes.values())[-1][1]
     for k, v in palettes.items():
         if k[0] not in palettes_in_use:
             if length < k[1][0]:
                 palettes_in_use += [k[0]]
                 return v[0].hex_colors[0:length]
-            elif k[1][0] > length > k[1][1]:
+            elif k[1][0] < length <= k[1][1]:
                 palettes_in_use += [k[0]]
                 return v[1].hex_colors[0:length]
-            else:
+            elif k[1][1] < length <= _max:
                 pass
+            elif length > _max:
+
+                logging.warning(f"don't have a colour pallette of length: {length}")
+                extra = length - _max
+                if extra > _max:
+                    raise ValueError(
+                        f"error selecting colour pallette of length = {length}"
+                    )
+                else:
+                    return _max_pallete.hex_colors + _max_pallete.hex_colors[0:extra]
+
+            else:
+                raise ValueError(
+                    f"error selecting colour pallette of length = {length}"
+                )
 
 
 def color_variant(hex_color, brightness_offset=1):
