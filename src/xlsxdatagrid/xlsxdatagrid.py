@@ -188,10 +188,12 @@ class FieldSchema(BaseModel):
 
     name: Annotated[str, doc(name_doc)]
     type: str
-    format: str = None
+    format: ty.Optional[str] = None
     title: Annotated[str, doc("A human readable label or title for the field")] = None
-    description: Annotated[
-        str, doc("A description for this field e.g. 'The recipient of the funds'")
+    description: ty.Optional[
+        Annotated[
+            str, doc("A description for this field e.g. 'The recipient of the funds'")
+        ]
     ] = None
     example: Annotated[str, doc("An example value for the field")] = None
     constraints: ty.Optional[Constraints] = (
@@ -596,7 +598,7 @@ def convert_records_to_datagrid_schema(schema: dict):
 
 
 def convert_list_records_to_dict_arrays(data: list[dict]) -> dict[str, list]:
-    return {k: [dic[k] for dic in data] for k in data[0]}
+    return {key: [di.get(key, "") for di in data] for key in data[0].keys()}
 
 
 def get_data_and_schema(pyd_obj: ty.Type[BaseModel]) -> tuple[dict[str, list], dict]:
