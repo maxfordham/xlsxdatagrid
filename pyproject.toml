@@ -24,7 +24,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = ["xlsxwriter", "pydantic>2", "jsonref", "palettable", "pydantic_extra_types", "python-calamine", "datamodel-code-generator", "stringcase", "frictionless", "frictionless[pandas]"]
+dependencies = ["xlsxwriter", "pydantic>2", "jsonref", "palettable", "pydantic_extra_types", "python-calamine", "datamodel-code-generator>=0.26.1", "stringcase", "frictionless", "frictionless[pandas]"]
 
 [project.urls]
 Documentation = "https://github.com/maxfordham/xlsxdatagrid#readme"
