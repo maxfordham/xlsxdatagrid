@@ -80,7 +80,7 @@ def read_metadata(s: str) -> DataGridMetaData:
 
 
 def process_data(
-    data: list[dict], metadata: DataGridMetaData
+    data: list[dict], metadata: DataGridMetaData, *, empty_string_to_none=True
 ) -> tuple[list[dict], DataGridMetaData]:
     hd = metadata.header_depth
     is_t = metadata.is_transposed
@@ -90,6 +90,9 @@ def process_data(
     # else:
     header_names = [d[0] for d in data[0:hd]]
     data = [d[1:] for d in data]
+    if empty_string_to_none:
+        data = [[(lambda _: None if _ == "" else _)(_) for _ in d] for d in data]
+
     headers = {h: data[n] for n, h in enumerate(header_names)}
     header = headers[header_names[-1]]
     metadata.datagrid_index_name = list(headers.keys())
@@ -228,7 +231,7 @@ def read_worksheet(
     worksheet: CalamineSheet,
     get_jsonschema: ty.Optional[ty.Callable[[DataGridMetaData], dict]] = None,
     *,
-    return_pydantic_model: bool = True,
+    return_pydantic_model: bool = False,
 ) -> list[dict]:
 
     data = worksheet.to_python(skip_empty_area=True)
@@ -273,18 +276,3 @@ def read_excel(
     sheet = workbook.sheet_names[0]
     worksheet = workbook.get_sheet_by_name(sheet)
     return read_worksheet(worksheet, get_jsonschema)
-
-
-# def read_excel(
-#     path,
-#     get_jsonschema: ty.Optional[
-#         ty.Callable[[DataGridMetaData], ty.Type[BaseModel]]
-#     ] = get_jsonschema,
-#     return_pydantic_model=False,
-# ) -> tuple[list[[dict, ty.Type[BaseModel]]], DataGridMetaData]:
-#     wb = pd.ExcelFile(path)
-#     ws = wb.sheet_names[0]  # TODO: add support for multiple sheets!
-
-#     return read_worksheet(
-#         wb, ws, get_jsonschema, return_pydantic_model=return_pydantic_model
-#     )
