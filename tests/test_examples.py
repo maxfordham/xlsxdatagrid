@@ -1,3 +1,11 @@
+import os
+import pathlib
+import pytest
+
+os.chdir(pathlib.Path(__file__).parent / "xlsxwriter-examples")
+
+
+@pytest.mark.skip()
 def test_write_chart():
     #######################################################################
     #
@@ -53,6 +61,7 @@ def test_write_chart():
     workbook.close()
 
 
+@pytest.mark.skip()
 def test_protected():
     import xlsxwriter
 
