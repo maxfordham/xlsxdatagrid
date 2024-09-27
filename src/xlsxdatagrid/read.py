@@ -17,8 +17,37 @@ from stringcase import snakecase
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 
 
+def fix_enum_hack(output):
+    # HACK: delete once issue resolved: https://github.com/koxudaxi/datamodel-code-generator/issues/2091
+    def fix_enums(s):
+        if "(Enum):" in s:
+            li_enums.append(s.replace("class ", "").replace("(Enum):", ""))
+            s = s.replace("(Enum):", "Enum(Enum):")
+        return s
+
+    def fix_enum_defs(s):
+        for k, v in di_replace.items():
+            if k in s:
+                return s.replace(k, v)
+        return s
+
+    li_enums = []
+
+    li = output.read_text().split("\n")
+    li = [fix_enums(s) for s in li]
+    di_replace = {}
+    for x in li_enums:
+        di_replace[f": {x}"] = f": {x}Enum"
+        di_replace[f": Optional[{x}]"] = f": Optional[{x}Enum]"
+    if len(di_replace) > 0:
+        li = [fix_enum_defs(s) for s in li]
+
+    output.write_text("\n".join(li))
+
+
 def pydantic_model_from_json_schema(json_schema: str) -> ty.Type[BaseModel]:
-    load = json_schema["title"] if "title" in json_schema else "Model"
+    load = json_schema["title"].replace(" ", "") if "title" in json_schema else "Model"
+    # TODO: refactor this when title vs name vs code has been sorted out...
 
     with TemporaryDirectory() as temporary_directory_name:
         temporary_directory = Path(temporary_directory_name)
@@ -31,7 +60,11 @@ def pydantic_model_from_json_schema(json_schema: str) -> ty.Type[BaseModel]:
             input_filename="example.json",
             output=output,
             output_model_type=DataModelType.PydanticV2BaseModel,
+            capitalise_enum_members=True,
         )
+        fix_enum_hack(
+            output
+        )  # TODO: remove this once resolved: https://github.com/koxudaxi/datamodel-code-generator/issues/2091
         spec = importlib.util.spec_from_file_location(module_name, output)
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
@@ -126,6 +159,7 @@ def make_datetime_tz_aware(data, pydantic_model):
 from jsonref import replace_refs
 from xlsxdatagrid.xlsxdatagrid import get_duration
 from datetime import timedelta
+import requests
 
 
 def parse_timedelta(data, json_schema):
@@ -147,9 +181,8 @@ def get_timedelta_fields(schema: dict) -> list[str]:
 def update_timedelta_fields(model: BaseModel, timedelta_fields: list[str]) -> BaseModel:
     """returns a new pydantic model where serialization validators have been added to dates,
     datetimes and durations for compatibility with excel"""
-    get_default = lambda obj: obj.default if hasattr(obj, "default") else ...
     deltas = {
-        k: (timedelta, get_default(v))
+        k: (timedelta, (lambda obj: obj.default if hasattr(obj, "default") else ...)(v))
         for k, v in model.model_fields.items()
         if k in timedelta_fields
     } | {"__base__": model}
@@ -169,9 +202,33 @@ def update_timedelta(model: BaseModel, timedelta_fields: list[str]) -> BaseModel
     return new_model
 
 
+def get_jsonschema(metadata: DataGridMetaData) -> dict:
+    if metadata.schema_url is not None:
+        return requests.get(metadata.schema_url).json()
+    return None
+
+
+import pandas as pd
+
+
+# def read_worksheet(
+#     workbook: pd.ExcelFile,
+#     worksheet: str,
+#     get_jsonschema: ty.Optional[ty.Callable[[DataGridMetaData], dict]] = get_jsonschema,
+#     return_pydantic_model: bool = False,
+# ) -> tuple[list[[dict, ty.Type[BaseModel]]], DataGridMetaData]:
+
+
+#     metadata = read_metadata(workbook.parse(worksheet, nrows=0).columns[0])
+#     data = worksheet.to_python(skip_empty_area=True)
+#     process_data(data, metadata)
+
+
 def read_worksheet(
     worksheet: CalamineSheet,
     get_jsonschema: ty.Optional[ty.Callable[[DataGridMetaData], dict]] = None,
+    *,
+    return_pydantic_model: bool = True,
 ) -> list[dict]:
 
     data = worksheet.to_python(skip_empty_area=True)
@@ -190,12 +247,20 @@ def read_worksheet(
             # ^ HACK: assume utc time for all datetimes as excel doesn't support tz...
             # data = parse_timedelta(data, json_schema)
             # ^ HACK: convert timedelta manually as generater pydantic model can't manage...
-
-            return pydantic_model.model_validate(data).model_dump(mode="json")
+            if return_pydantic_model:
+                return pydantic_model.model_validate(data), metadata
+            else:
+                return (
+                    pydantic_model.model_validate(data).model_dump(mode="json"),
+                    metadata,
+                )
         else:
-            return data
+            return data, metadata
     else:
-        return data
+        return data, metadata
+
+
+import pandas as pd
 
 
 def read_excel(
@@ -208,3 +273,18 @@ def read_excel(
     sheet = workbook.sheet_names[0]
     worksheet = workbook.get_sheet_by_name(sheet)
     return read_worksheet(worksheet, get_jsonschema)
+
+
+# def read_excel(
+#     path,
+#     get_jsonschema: ty.Optional[
+#         ty.Callable[[DataGridMetaData], ty.Type[BaseModel]]
+#     ] = get_jsonschema,
+#     return_pydantic_model=False,
+# ) -> tuple[list[[dict, ty.Type[BaseModel]]], DataGridMetaData]:
+#     wb = pd.ExcelFile(path)
+#     ws = wb.sheet_names[0]  # TODO: add support for multiple sheets!
+
+#     return read_worksheet(
+#         wb, ws, get_jsonschema, return_pydantic_model=return_pydantic_model
+#     )
