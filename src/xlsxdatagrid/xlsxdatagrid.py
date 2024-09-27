@@ -706,18 +706,12 @@ def convert_list_records_to_dict_arrays(data: list[dict]) -> dict[str, list]:
     return {k: [dic[k] for dic in data] for k in data[0]}
 
 
-def convert_dict_arrays_to_list_records(data: dict[str, list]) -> list[dict]:
+def convert_dict_arrays_to_list_records(
+    data: dict[str, list]
+) -> list[dict]:  # NOT IN USE
     if len(data) == 0:
         return []
     return [dict(zip(data.keys(), values)) for values in zip(*data.values())]
-
-
-def get_data_and_dgschema(pyd_obj: ty.Type[BaseModel]) -> tuple[dict[str, list], dict]:
-    schema = pyd_obj.model_json_schema(mode="serialization")
-    gridschema = convert_records_to_datagrid_schema(schema)
-    data = pyd_obj.model_dump(mode="json")  # mode="json"
-    data = convert_list_records_to_dict_arrays(data)
-    return data, DataGridSchema(**gridschema)
 
 
 import numpy as np
@@ -882,34 +876,54 @@ import pandas as pd
 from pandas.io.json import build_table_schema
 
 
-def write_resource_to_sheet():
-    pass
-
-
 def write_sheet(
-    workbook: xw.Workbook, data: dict, gridschema: dict
-) -> xw.worksheet.Worksheet:
+    workbook: xw.Workbook,
+    data: list[dict],
+    gridschema: ty.Union[dict, DataGridSchema, BaseModel, ty.Type[BaseModel]],
+) -> tuple[xw.worksheet.Worksheet, XlTableWriter]:
     gridschema = coerce_schema(gridschema)
+    data = convert_list_records_to_dict_arrays(data)
     xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
     return write_table(workbook, xl_tbl), xl_tbl
 
 
+def write_sheets(
+    workbook: xw.Workbook,
+    datas: list[list[dict]],
+    gridschemas: list[ty.Union[dict, DataGridSchema, BaseModel, ty.Type[BaseModel]]],
+) -> tuple[list[xw.worksheet.Worksheet], list[XlTableWriter]]:
+    return zip(
+        *[
+            write_sheet(workbook, data, schema)
+            for data, schema in zip(datas, gridschemas)
+        ]
+    )
+
+
 def wb_from_json(
-    data: ty.Union[dict, list], schema: dict, fpth: ty.Optional[pathlib.Path] = None
+    data: list[dict], schema: dict, fpth: ty.Optional[pathlib.Path] = None
 ) -> tuple[xw.Workbook, XlTableWriter, xw.worksheet.Worksheet]:
     if fpth is None:
         fpth = pathlib.Path(schema.get("title") + ".xlsx")
     workbook = xw.Workbook(str(fpth))
-    if isinstance(data, list):
-        data = convert_list_records_to_dict_arrays(data)
     worksheet, xl_tbl = write_sheet(workbook, data=data, gridschema=schema)
-
     return workbook, xl_tbl, worksheet
+
+
+def wb_from_jsons(
+    datas: list[list[dict]],
+    schemas: list[ty.Union[dict, DataGridSchema, BaseModel]],
+    fpth: pathlib.Path,
+) -> tuple[xw.Workbook, XlTableWriter, xw.worksheet.Worksheet]:
+    workbook = xw.Workbook(str(fpth))
+    # schemas = coerce_lengths(len(datas), schemas)
+    worksheets, xl_tbls = write_sheets(workbook, datas, schemas)
+    return workbook, worksheets, xl_tbls
 
 
 def from_json(
     data: dict,
-    schema: ty.Union[dict, DataGridSchema],
+    schema: ty.Union[dict, DataGridSchema, BaseModel],
     fpth: ty.Optional[pathlib.Path] = None,
     is_transposed: ty.Optional[bool] = None,
 ):
@@ -923,32 +937,46 @@ def from_json(
     return fpth
 
 
+def from_jsons(
+    datas: list[list[dict]],
+    gridschemas: list[ty.Union[dict, DataGridSchema, BaseModel]],
+    fpth: pathlib.Path = None,
+):
+    if fpth is None:
+        fpth = pathlib.Path("output" + ".xlsx")
+    workbook, worksheets, xl_tbls = wb_from_jsons(datas, gridschemas, fpth)
+    workbook.close()
+    return fpth
+
+
 from frictionless import Resource
 from frictionless.resources import TableResource
-
-
-# Resource()
-def write_dataframe_table():
-    pass
 
 
 def wb_from_dataframe(
     dataframe: pd.DataFrame, fpth: pathlib.Path, schema: ty.Optional[dict] = None
 ) -> tuple[xw.Workbook, XlTableWriter, xw.worksheet.Worksheet]:
-    # resource = Resource(dataframe)
-    # data = resource.read_rows()
-    # TODO: use frictionless to get data and schema
-    #       ^ https://github.com/frictionlessdata/frictionless-py/issues/1678
 
     schema = (lambda s, df: build_table_schema(df) if s is None else s)(
         schema, dataframe
     )
     if "title" not in schema.keys():
         schema["title"] = fpth.stem
-    data = convert_list_records_to_dict_arrays(
-        dataframe.reset_index().to_dict(orient="records")
-    )
+    data = dataframe.reset_index().to_dict(orient="records")
     return wb_from_json(data, schema, fpth)
+
+
+def coerce_lengths(length: int, *args: ty.Union[ty.Any, list]):
+    return [
+        (lambda a: length * [a] if not isinstance(a, list) else a)(a) for a in args
+    ]  # coerce fixed attributes into list of equal length to lead
+
+
+def ensure_titles_in_schemas(schemas):
+    return [
+        (lambda n, s: s | {"title": f"Sheet{n}"} if "title" not in s else s)(n + 1, s)
+        for n, s in enumerate(schemas)
+    ]
 
 
 def wb_from_dataframes(
@@ -959,42 +987,25 @@ def wb_from_dataframes(
 ) -> tuple[xw.Workbook, list[XlTableWriter], list[xw.worksheet.Worksheet]]:
     # resource = Resource(dataframe)
     # data = resource.read_rows()
-    # TODO: use frictionless to get data and schema
+    # TODO: use frictionless to get data and schema ?
     #       ^ https://github.com/frictionlessdata/frictionless-py/issues/1678
 
-    if schemas is not None and isinstance(schemas, dict):
-        schemas = len(dataframes)[schemas]  # assume same schema for all dataframes
-    elif schemas is None:
-        schemas = [None] * len(dataframes)
-    elif isinstance(schemas, list) and len(schemas) != len(dataframes):
-        raise ValueError(
-            f"len of schemas and dataframes must be equal. len(schemas)={len(schemas)}, len(dataframes)={len(dataframes)}"
-        )
-    else:
-        pass
-
+    (schemas,) = coerce_lengths(len(dataframes), schemas)
     schemas = [
         (lambda s, df: build_table_schema(df) if s is None else s)(schema, dataframe)
         for schema, dataframe in zip(schemas, dataframes)
     ]
-
     if titles is not None:
         schemas = [s | {"title": t} for s, t in zip(schemas, titles)]
-
-    schemas = [
-        (lambda n, s: s | {"title": f"Sheet{n}"} if "title" not in s else s)(n + 1, s)
-        for n, s in enumerate(schemas)
-    ]
+    else:
+        schemas = ensure_titles_in_schemas(schemas)
 
     datas = [
-        convert_list_records_to_dict_arrays(
-            dataframe.reset_index().fillna("").to_dict(orient="records")
-        )
+        dataframe.reset_index().fillna("").to_dict(orient="records")
         for dataframe in dataframes
     ]
     workbook = xw.Workbook(str(fpth))
-    _ = [write_sheet(workbook, data, schema) for data, schema in zip(datas, schemas)]
-    worksheets, xl_tbls = [x[0] for x in _], [x[1] for x in _]
+    worksheets, xl_tbls = write_sheets(workbook, datas, schemas)
 
     return workbook, worksheets, xl_tbls
 
@@ -1020,19 +1031,28 @@ def from_dataframes(
     return fpth
 
 
-def from_jsons(data: list[dict], gridschema: list[dict], fpth: pathlib.Path = None):
-    assert len(data) == len(gridschema)
-    pass
+def get_data_and_dgschema(
+    pyd_obj: ty.Type[BaseModel],
+) -> tuple[dict[str, list], dict]:
+    schema = pyd_obj.model_json_schema(mode="serialization")
+    data = pyd_obj.model_dump(mode="json")
+    return data, schema
 
 
 def from_pydantic_object(
     pydantic_object: ty.Type[BaseModel], fpth: pathlib.Path = None
 ) -> pathlib.Path:
-    data, gridschema = get_data_and_dgschema(pydantic_object)
-    return from_json(data, gridschema, fpth=fpth)
+    data, schema = get_data_and_dgschema(pydantic_object)
+    return from_json(data, schema, fpth=fpth)
 
 
 def from_pydantic_objects(
     pydantic_objects: list[ty.Type[BaseModel]], fpth: pathlib.Path
 ) -> pathlib.Path:
-    pass
+    datas, schemas = zip(
+        *[
+            get_data_and_dgschema(pydantic_object)
+            for pydantic_object in pydantic_objects
+        ]
+    )
+    return from_jsons(datas, schemas, fpth=fpth)

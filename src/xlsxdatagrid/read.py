@@ -176,33 +176,33 @@ def parse_timedelta(data, json_schema):
         return data
 
 
-def get_timedelta_fields(schema: dict) -> list[str]:
-    pr = replace_refs(schema)["items"]["properties"]
-    return [k for k, v in pr.items() if "format" in v and v["format"] == "duration"]
+# def get_timedelta_fields(schema: dict) -> list[str]:
+#     pr = replace_refs(schema)["items"]["properties"]
+#     return [k for k, v in pr.items() if "format" in v and v["format"] == "duration"]
 
 
-def update_timedelta_fields(model: BaseModel, timedelta_fields: list[str]) -> BaseModel:
-    """returns a new pydantic model where serialization validators have been added to dates,
-    datetimes and durations for compatibility with excel"""
-    deltas = {
-        k: (timedelta, (lambda obj: obj.default if hasattr(obj, "default") else ...)(v))
-        for k, v in model.model_fields.items()
-        if k in timedelta_fields
-    } | {"__base__": model}
-    return create_model(model.__name__ + "New", **deltas)
+# def update_timedelta_fields(model: BaseModel, timedelta_fields: list[str]) -> BaseModel:
+#     """returns a new pydantic model where serialization validators have been added to dates,
+#     datetimes and durations for compatibility with excel"""
+#     deltas = {
+#         k: (timedelta, (lambda obj: obj.default if hasattr(obj, "default") else ...)(v))
+#         for k, v in model.model_fields.items()
+#         if k in timedelta_fields
+#     } | {"__base__": model}
+#     return create_model(model.__name__ + "New", **deltas)
 
 
-def update_timedelta(model: BaseModel, timedelta_fields: list[str]) -> BaseModel:
-    """returns a new pydantic model where serialization validators have been added to dates, datetimes and durations for compatibility with excel of array items"""
-    assert len(model.model_fields) == 1
-    assert list(model.model_fields.keys()) == ["root"]
-    item_model = model.model_fields["root"].annotation.__args__[0]
-    new_item_model = update_timedelta_fields(item_model, timedelta_fields)
-    new_model = create_model(
-        model.__name__ + "New",
-        **{"root": (ty.List[new_item_model], ...)} | {"__base__": model},
-    )
-    return new_model
+# def update_timedelta(model: BaseModel, timedelta_fields: list[str]) -> BaseModel:
+#     """returns a new pydantic model where serialization validators have been added to dates, datetimes and durations for compatibility with excel of array items"""
+#     assert len(model.model_fields) == 1
+#     assert list(model.model_fields.keys()) == ["root"]
+#     item_model = model.model_fields["root"].annotation.__args__[0]
+#     new_item_model = update_timedelta_fields(item_model, timedelta_fields)
+#     new_model = create_model(
+#         model.__name__ + "New",
+#         **{"root": (ty.List[new_item_model], ...)} | {"__base__": model},
+#     )
+#     return new_model
 
 
 def get_jsonschema(metadata: DataGridMetaData) -> dict:
@@ -239,17 +239,18 @@ def read_worksheet(
     if get_jsonschema is not None:
         json_schema = get_jsonschema(metadata)
         if json_schema is not None:
-            timedelta_fields = get_timedelta_fields(json_schema)
+
             pydantic_model = pydantic_model_from_json_schema(json_schema)
-            if len(timedelta_fields) > 0:
-                pydantic_model = update_timedelta(pydantic_model, timedelta_fields)
-                # ^ HACK: convert timedelta manually as generater pydantic model can't manage...
-                #   REF: https://github.com/koxudaxi/datamodel-code-generator/issues/1624
+            # timedelta_fields = get_timedelta_fields(json_schema)
+            # if len(timedelta_fields) > 0:
+            #     pydantic_model = update_timedelta(pydantic_model, timedelta_fields)
+            #     # ^ HACK: convert timedelta manually as generater pydantic model can't manage...
+            #     #   REF: https://github.com/koxudaxi/datamodel-code-generator/issues/1624
+            # data = parse_timedelta(data, json_schema)
+            # ^ HACK: convert timedelta manually as generater pydantic model can't manage...
 
             data = make_datetime_tz_aware(data, pydantic_model)
             # ^ HACK: assume utc time for all datetimes as excel doesn't support tz...
-            # data = parse_timedelta(data, json_schema)
-            # ^ HACK: convert timedelta manually as generater pydantic model can't manage...
             if return_pydantic_model:
                 return pydantic_model.model_validate(data), metadata
             else:

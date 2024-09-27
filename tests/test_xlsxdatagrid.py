@@ -21,12 +21,13 @@ from . import constants as c
 
 from xlsxdatagrid.xlsxdatagrid import (
     write_table,
-    get_data_and_dgschema,
     convert_records_to_datagrid_schema,
     XlTableWriter,
     DataGridSchema,
     convert_list_records_to_dict_arrays,
 )
+
+from xlsxdatagrid.xlsxdatagrid import from_pydantic_object, from_pydantic_objects
 
 
 class MyColor(Enum):
@@ -272,11 +273,7 @@ def test_pydantic_object_write_table(is_transposed):
     fpth, pyd_obj = get_pydantic_test_inputs(is_transposed=is_transposed)
 
     fpth.unlink(missing_ok=True)
-    data, gridschema = get_data_and_dgschema(pyd_obj)
-    xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
-    workbook = xw.Workbook(str(fpth))
-    write_table(workbook, xl_tbl)
-    workbook.close()
+    fpth = from_pydantic_object(pyd_obj, fpth)
     assert fpth.is_file()
 
 
@@ -287,16 +284,7 @@ def test_pydantic_objects_write_tables():
     pyd_obj = TestArray(array_to_records(ARRAY_DATA))
     pyd_obj1 = TestArray1(array_to_records(ARRAY_DATA1))
 
-    data, gridschema = get_data_and_dgschema(pyd_obj)
-    xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
-    workbook = xw.Workbook(str(fpth))
-    write_table(workbook, xl_tbl)
-
-    data1, gridschema1 = get_data_and_dgschema(pyd_obj1)
-    xl_tbl1 = XlTableWriter(data=data1, gridschema=gridschema1)
-    write_table(workbook, xl_tbl1)
-
-    workbook.close()
+    fpth = from_pydantic_objects([pyd_obj, pyd_obj1], fpth)
     assert fpth.is_file()
 
 
@@ -351,6 +339,8 @@ def test_schema_and_data_from_digital_schedules_api():
 
 
 from dirty_equals import IsInstance, IsPartialDict
+from dirty_equals import IsInstance
+from xlsxdatagrid.xlsxdatagrid import coerce_schema, convert_records_to_datagrid_schema
 
 
 def test_IsInstance():
@@ -368,10 +358,6 @@ def test_IsInstance():
     assert isinstance(Foo(), BaseModel)
     assert issubclass(Foo, BaseModel)
     assert not FooArray() == IsInstance(Foo)
-
-
-from dirty_equals import IsInstance
-from xlsxdatagrid.xlsxdatagrid import coerce_schema, convert_records_to_datagrid_schema
 
 
 def test_coerce_schema():
@@ -546,6 +532,7 @@ def test_from_json_empty_data(is_transposed):
     fpth = (
         c.PATH_FROM_JSON_EMPTY if is_transposed else c.PATH_FROM_JSON_EMPTY_TRANSPOSED
     )
-    di = dict(a=[2], b=["a"], c=["c"])
-    xdg.from_json(di, schema=TestGrid, fpth=fpth, is_transposed=is_transposed)
+
+    data = [dict(a=2, b="b", c=None)]
+    xdg.from_json(data, schema=TestGrid, fpth=fpth, is_transposed=is_transposed)
     assert fpth.is_file()

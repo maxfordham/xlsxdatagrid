@@ -5,15 +5,11 @@ from .test_xlsxdatagrid import TestArray, TestArrayTransposed, from_json_with_nu
 from pydantic import BaseModel
 import pytest
 import json
+import typing as ty
+import datetime
 
-# PATH_SCHEMA = pathlib.Path()
 schemas = [TestArray.model_json_schema(), TestArrayTransposed.model_json_schema()]
 schemas = {s["title"]: s for s in schemas}
-
-# paths = list(pathlib.Path("tests").glob("*schema.*"))
-# for p in paths:
-#     schema = json.loads(p.read_text())
-#     schemas[schema["title"]] = schema
 
 
 # def pydantic_model_from_json_schema(json_schema: str) -> ty.Type[BaseModel]:
@@ -123,8 +119,23 @@ def test_read_excel_with_null(from_json_with_null):
     assert obj == data
 
 
-# def test_read_excel_raw_jsonschema():
-#     obj, metadata = read_excel(PATH_XL, get_jsonschema=get_raw_jsonschema)
-#     assert isinstance(obj, list)
-#     assert len(obj) == 3
-#     print("done")
+def test_timedelta():
+    # https://github.com/koxudaxi/datamodel-code-generator/issues/1624
+    schema = {
+        "title": "Test",
+        "type": "object",
+        "properties": {
+            "a_int": {"default": 1, "title": "A Int", "type": "integer"},
+            "i_duration": {
+                "default": "PT2H33M3S",
+                "format": "duration",
+                "title": "I Duration",
+                "type": "string",
+            },
+        },
+    }
+
+    Model = pydantic_model_from_json_schema(schema)
+    assert (
+        Model.model_fields["i_duration"].annotation == ty.Optional[datetime.timedelta]
+    )
