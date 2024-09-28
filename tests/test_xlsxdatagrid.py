@@ -268,6 +268,18 @@ def get_pydantic_test_inputs(is_transposed=False):
         return c.PATH_XL, get_test_array(is_transposed)
 
 
+def test_coerce_schema():
+    schema = coerce_schema(TEST_ARRAY_SCHEMA)
+    assert IsInstance(DataGridSchema, schema)
+
+    schema = coerce_schema(TestArrayTransposed)
+    assert IsInstance(DataGridSchema, schema)
+    
+    schema = coerce_schema(TestArray)
+    assert IsInstance(DataGridSchema, schema)
+    
+
+
 @pytest.mark.parametrize("is_transposed", [True, False])
 def test_pydantic_object_write_table(is_transposed):
     fpth, pyd_obj = get_pydantic_test_inputs(is_transposed=is_transposed)
@@ -338,7 +350,6 @@ def test_schema_and_data_from_digital_schedules_api():
     assert fpth.is_file()
 
 
-from dirty_equals import IsInstance, IsPartialDict
 from dirty_equals import IsInstance
 from xlsxdatagrid.xlsxdatagrid import coerce_schema, convert_records_to_datagrid_schema
 
