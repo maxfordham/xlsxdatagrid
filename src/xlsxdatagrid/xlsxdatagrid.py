@@ -8,9 +8,7 @@ from pydantic import (
     ConfigDict,
     computed_field,
     model_validator,
-    field_validator,
     AliasChoices,
-    ValidationError,
 )
 from typing_extensions import Annotated
 from jsonref import replace_refs
@@ -203,6 +201,8 @@ class FieldSchema(BaseModel):
 
 
 class FieldSchemaXl(FieldSchema):
+    model_config = ConfigDict(extra="allow")
+    
     data_validation: dict = {}
     conditional_format: str
     cell_format: dict
