@@ -1,7 +1,7 @@
 from xlsxdatagrid.read import read_excel, pydantic_model_from_json_schema
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 from .constants import PATH_XL, PATH_XL_TRANSPOSED, PATH_JSONSCHEMA_RAW
-from .test_xlsxdatagrid import TestArray, TestArrayTransposed, from_json_with_null
+from .test_xlsxdatagrid import TestArray, TestArrayTransposed
 from pydantic import BaseModel
 import pytest
 import json

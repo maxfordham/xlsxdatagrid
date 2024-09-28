@@ -51,16 +51,17 @@ platforms = ["linux-64"]
 xlsxdatagrid = { path = ".", editable = true }
 
 [tool.pixi.tasks]
-test = "pytest"
+
 
 [tool.pixi.environments]
 test = ["test"]
 
 [tool.pixi.feature.test.dependencies]
 pytest = "*"
-ruff = "*"
+ruff = ">=0.6.8,<0.7"
 
 [tool.pixi.feature.test.tasks]
 test = "pytest"
-lint = "ruff lint"
+lint = "ruff check --fix"
+format = "ruff format"
 

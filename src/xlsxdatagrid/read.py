@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 # 3rd party
 from python_calamine import CalamineWorkbook, CalamineSheet
 from datamodel_code_generator import InputFileType, generate, DataModelType
-from pydantic import BaseModel, create_model, AwareDatetime
+from pydantic import BaseModel, AwareDatetime
 from stringcase import snakecase
 
 # local
@@ -119,7 +119,6 @@ def get_jsonschema(metadata: DataGridMetaData) -> dict:
 
 
 def make_datetime_tz_aware(data, pydantic_model):
-
     def field_is_aware_datetime(field):
         if hasattr(field.annotation, "__args__"):
             if AwareDatetime in field.annotation.__args__:
@@ -161,12 +160,10 @@ def make_datetime_tz_aware(data, pydantic_model):
 #         return data
 from jsonref import replace_refs
 from xlsxdatagrid.xlsxdatagrid import get_duration
-from datetime import timedelta
 import requests
 
 
 def parse_timedelta(data, json_schema):
-
     pr = replace_refs(json_schema)["items"]["properties"]
     keys = [k for k, v in pr.items() if "format" in v and v["format"] == "duration"]
 
@@ -182,7 +179,6 @@ def get_jsonschema(metadata: DataGridMetaData) -> dict:
     return None
 
 
-import pandas as pd
 
 
 def read_worksheet(
@@ -191,13 +187,11 @@ def read_worksheet(
     *,
     return_pydantic_model: bool = False,
 ) -> list[dict]:
-
     data = worksheet.to_python(skip_empty_area=True)
     data, metadata = read_data(data)
     if get_jsonschema is not None:
         json_schema = get_jsonschema(metadata)
         if json_schema is not None:
-
             pydantic_model = pydantic_model_from_json_schema(json_schema)
 
             data = make_datetime_tz_aware(data, pydantic_model)
@@ -215,7 +209,6 @@ def read_worksheet(
         return data, metadata
 
 
-import pandas as pd
 
 
 def read_excel(

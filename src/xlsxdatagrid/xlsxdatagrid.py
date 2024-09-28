@@ -12,12 +12,10 @@ from pydantic import (
 )
 from typing_extensions import Annotated
 from jsonref import replace_refs
-from annotated_types import doc
 import functools
 import typing as ty
 from xlsxdatagrid.colours import get_color_pallette
 from pydantic_extra_types.color import Color
-from typing_extensions import Annotated
 from datetime import datetime, date
 from xlsxwriter.utility import xl_rowcol_to_cell, datetime_to_excel_datetime
 
@@ -157,7 +155,6 @@ PY2XL = {
 
 def py2xl_formula(formula, map_names):
     def replace(formula, di):
-
         for k, v in di.items():
             if k in formula:
                 formula = formula.replace(k, v)
@@ -202,7 +199,7 @@ class FieldSchema(BaseModel):
 
 class FieldSchemaXl(FieldSchema):
     model_config = ConfigDict(extra="allow")
-    
+
     data_validation: dict = {}
     conditional_format: str
     cell_format: dict
@@ -301,11 +298,8 @@ def get_xl_constraints(f: FieldSchema):  # TODO: write text for this
 from typing_extensions import Self
 from pydantic import HttpUrl
 
-METADATA_FSTRING: str = (
-    "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - SchemaUrl={schema_url}"
-)
+METADATA_FSTRING: str = "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - SchemaUrl={schema_url}"
 
-import pathlib
 
 # from urllib.parse import urlparse
 # import requests
@@ -388,7 +382,6 @@ class DataGridSchema(DataGridMetaData):
 
     @computed_field
     def map_name_header(self) -> dict[str, ty.Union[str, list[str]]]:
-
         if self.datagrid_index_name == ("name",):
             return None
         elif len(self.datagrid_index_name) == 1:
@@ -465,7 +458,6 @@ class XlTableWriter(BaseModel):
 
     @model_validator(mode="after")
     def build(self) -> "XlTableWriter":
-
         self.metadata = self.gridschema.metadata_fstring.format(
             **self.gridschema.model_dump()
         )
@@ -666,7 +658,7 @@ import inspect
 
 
 def coerce_schema(
-    schema: ty.Union[dict, DataGridSchema, BaseModel, ty.Type[BaseModel]]
+    schema: ty.Union[dict, DataGridSchema, BaseModel, ty.Type[BaseModel]],
 ) -> DataGridSchema:
     if schema == IsInstance(DataGridSchema, only_direct_instance=True):
         return schema  # its already a `DataGridSchema`
@@ -707,14 +699,13 @@ def convert_list_records_to_dict_arrays(data: list[dict]) -> dict[str, list]:
 
 
 def convert_dict_arrays_to_list_records(
-    data: dict[str, list]
+    data: dict[str, list],
 ) -> list[dict]:  # NOT IN USE
     if len(data) == 0:
         return []
     return [dict(zip(data.keys(), values)) for values in zip(*data.values())]
 
 
-import numpy as np
 
 
 def write_table(workbook, xl_tbl: XlTableWriter):
@@ -949,14 +940,11 @@ def from_jsons(
     return fpth
 
 
-from frictionless import Resource
-from frictionless.resources import TableResource
 
 
 def wb_from_dataframe(
     dataframe: pd.DataFrame, fpth: pathlib.Path, schema: ty.Optional[dict] = None
 ) -> tuple[xw.Workbook, XlTableWriter, xw.worksheet.Worksheet]:
-
     schema = (lambda s, df: build_table_schema(df) if s is None else s)(
         schema, dataframe
     )

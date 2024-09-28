@@ -261,7 +261,6 @@ def get_test_array(is_transposed=False):
 
 
 def get_pydantic_test_inputs(is_transposed=False):
-
     if is_transposed:
         return c.PATH_XL_TRANSPOSED, get_test_array(is_transposed)
     else:
@@ -274,10 +273,9 @@ def test_coerce_schema():
 
     schema = coerce_schema(TestArrayTransposed)
     assert IsInstance(DataGridSchema, schema)
-    
+
     schema = coerce_schema(TestArray)
     assert IsInstance(DataGridSchema, schema)
-    
 
 
 @pytest.mark.parametrize("is_transposed", [True, False])
@@ -351,11 +349,10 @@ def test_schema_and_data_from_digital_schedules_api():
 
 
 from dirty_equals import IsInstance
-from xlsxdatagrid.xlsxdatagrid import coerce_schema, convert_records_to_datagrid_schema
+from xlsxdatagrid.xlsxdatagrid import coerce_schema
 
 
 def test_IsInstance():
-
     class Foo(BaseModel):
         a: str = "a"
 
@@ -372,7 +369,6 @@ def test_IsInstance():
 
 
 def test_coerce_schema():
-
     class Foo(BaseModel):
         a: str = "a"
 
@@ -409,8 +405,7 @@ def test_coerce_schema():
 
 
 from frictionless import Resource
-from frictionless.resources import TableResource
-from frictionless import Package, Resource
+from frictionless import Package
 
 
 def test_datapackage():

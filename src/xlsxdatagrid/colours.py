@@ -66,7 +66,6 @@ def get_color_pallette(
             elif k[1][1] < length <= _max:
                 pass
             elif length > _max:
-
                 logging.warning(f"don't have a colour pallette of length: {length}")
                 extra = length - _max
                 if extra > _max:
