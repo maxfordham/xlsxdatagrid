@@ -1,0 +1,12 @@
+https://github.com/frictionlessdata/frictionless-py/issues/1678
+```{python}
+import pandas as pd
+x = range(0, 5)
+y = [_**2 for _ in x]
+z = [_*1.2 for _ in x]
+df = pd.DataFrame({"x": x, "y": y, "z": z})
+
+from frictionless import Resource
+r = Resource(df)
+r.read_rows()
+```

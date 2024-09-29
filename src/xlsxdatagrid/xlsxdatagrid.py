@@ -1,23 +1,32 @@
-import pathlib
+import functools
+import inspect
 import logging
-from annotated_types import doc
+import pathlib
+import typing as ty
+from datetime import date, datetime, time, timedelta
+
 import annotated_types
+import pandas as pd
+import xlsxwriter as xw
+from annotated_types import doc
+from dirty_equals import IsInstance
+from jsonref import replace_refs
+from pandas.io.json import build_table_schema
 from pydantic import (
+    AliasChoices,
     BaseModel,
-    Field,
     ConfigDict,
+    Field,
+    HttpUrl,
+    RootModel,
     computed_field,
     model_validator,
-    AliasChoices,
 )
-from typing_extensions import Annotated
-from jsonref import replace_refs
-import functools
-import typing as ty
-from xlsxdatagrid.colours import get_color_pallette
 from pydantic_extra_types.color import Color
-from datetime import datetime, date
-from xlsxwriter.utility import xl_rowcol_to_cell, datetime_to_excel_datetime
+from typing_extensions import Annotated, Self
+from xlsxwriter.utility import datetime_to_excel_datetime, xl_rowcol_to_cell
+
+from xlsxdatagrid.colours import get_color_pallette
 
 # https://specs.frictionlessdata.io//table-schema/
 name_doc = """The field descriptor MUST contain a name property.
@@ -106,21 +115,8 @@ XL_TABLE_PROPERTIES = (
 # ^ NOT IN USE -------------------------------
 
 
-class Constraints(BaseModel):
-    minimum: ty.Optional[ty.Union[int, float]] = None
-    maximum: ty.Optional[ty.Union[int, float]] = None
-    exclusiveMinimum: ty.Optional[bool] = None
-    exclusiveMaximum: ty.Optional[bool] = None
-    enum: ty.Optional[list[ty.Any]] = None
-    maxLength: ty.Optional[int] = None
-    minLength: ty.Optional[int] = None
+METADATA_FSTRING: str = "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - SchemaUrl={schema_url}"
 
-
-NUMERIC_CONSTRAINTS = [
-    i for i in list(Constraints.__annotations__.keys()) if i != "enum"
-]
-LI_CONSTRAINTS = list(Constraints.__annotations__.keys())
-# https://xlsxwriter.readthedocs.io/working_with_data_validation.html#criteria
 
 MAP_TYPES_JSON_XL = {"integer": "integer", "float": "decimal", "date": "date"}
 
@@ -153,6 +149,23 @@ PY2XL = {
 }
 
 
+class Constraints(BaseModel):
+    minimum: ty.Optional[ty.Union[int, float]] = None
+    maximum: ty.Optional[ty.Union[int, float]] = None
+    exclusiveMinimum: ty.Optional[bool] = None
+    exclusiveMaximum: ty.Optional[bool] = None
+    enum: ty.Optional[list[ty.Any]] = None
+    maxLength: ty.Optional[int] = None
+    minLength: ty.Optional[int] = None
+
+
+NUMERIC_CONSTRAINTS = [
+    i for i in list(Constraints.__annotations__.keys()) if i != "enum"
+]
+LI_CONSTRAINTS = list(Constraints.__annotations__.keys())
+# https://xlsxwriter.readthedocs.io/working_with_data_validation.html#criteria
+
+
 def py2xl_formula(formula, map_names):
     def replace(formula, di):
         for k, v in di.items():
@@ -160,7 +173,7 @@ def py2xl_formula(formula, map_names):
                 formula = formula.replace(k, v)
         return formula
 
-    map_table_names = {l: f"[@[{l}]]" for l in map_names.keys()}
+    map_table_names = {x: f"[@[{x}]]" for x in map_names.keys()}
     formula = replace(formula, PY2XL)
     formula = replace(formula, map_names)
     formula = replace(formula, map_table_names)
@@ -176,7 +189,7 @@ def map_simple_numeric_constraints(di):
 
 
 def map_constraints(di):
-    li_num = get_numeric_constraints(di)
+    get_numeric_constraints(di)
     return None
 
 
@@ -198,8 +211,6 @@ class FieldSchema(BaseModel):
 
 
 class FieldSchemaXl(FieldSchema):
-    model_config = ConfigDict(extra="allow")
-
     data_validation: dict = {}
     conditional_format: str
     cell_format: dict
@@ -295,12 +306,6 @@ def get_xl_constraints(f: FieldSchema):  # TODO: write text for this
         }
 
 
-from typing_extensions import Self
-from pydantic import HttpUrl
-
-METADATA_FSTRING: str = "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - SchemaUrl={schema_url}"
-
-
 # from urllib.parse import urlparse
 # import requests
 
@@ -376,8 +381,12 @@ class DataGridSchema(DataGridMetaData):
     def get_header_depth(self) -> "DataGridSchema":
         self.header_depth = len(self.datagrid_index_name)
         self.header = [
-            [getattr(f, nm) for f in self.fields] for nm in self.datagrid_index_name
-        ]
+            [
+                (lambda f, nm: getattr(f, nm) if hasattr(f, nm) else None)(f, nm)
+                for f in self.fields
+            ]
+            for nm in self.datagrid_index_name
+        ]  # TODO
         return self
 
     @computed_field
@@ -404,10 +413,6 @@ class DataGridSchema(DataGridMetaData):
 def convert_date_to_excel_ordinal(d: date, offset: int = 693594):
     # the offset date value for the date of 1900-01-00 = 693594
     return d.toordinal() - offset
-
-
-from pydantic import RootModel
-from datetime import time, timedelta
 
 
 def get_datetime(d):
@@ -474,10 +479,10 @@ class XlTableWriter(BaseModel):
         # ensure data and key col names in same order
         if self.gridschema.field_names != list(self.data.keys()):
             self.data = {
-                l: (lambda l, data: data[l] if l in data.keys() else [None] * length)(
-                    l, self.data
+                x: (lambda x, data: data[x] if x in data.keys() else [None] * length)(
+                    x, self.data
                 )
-                for l in self.gridschema.field_names
+                for x in self.gridschema.field_names
             }
         assert self.gridschema.field_names == list(self.data.keys())
         # TODO: allow option of only outputting fields which have data associated with them
@@ -550,7 +555,7 @@ class XlTableWriter(BaseModel):
             }
 
         for v in di_section_colors.values():
-            self.formats = self.formats | {f"{l[1]}": {"bg_color": l[1]} for l in v}
+            self.formats = self.formats | {f"{x[1]}": {"bg_color": x[1]} for x in v}
 
         for k, v in di_section_colors.items():
             r1, c1, r2, c2 = self.rng_headers[ix_nm.index(k)]
@@ -631,7 +636,7 @@ def flatten_anyOf(fields: list) -> list:
 
 def convert_records_to_datagrid_schema(schema: dict):
     li_constraints = list(Constraints.__annotations__.keys())
-    gridschema = replace_refs(schema)
+    gridschema = replace_refs(schema, merge_props=True)
     gridschema["fields"] = [
         flatten_allOf(v) | {"name": k}
         for k, v in gridschema["items"]["properties"].items()
@@ -651,10 +656,6 @@ def convert_records_to_datagrid_schema(schema: dict):
     gridschema["format"] = "dataframe"
     gridschema = {k: v for k, v in gridschema.items() if k not in ["$defs", "items"]}
     return gridschema
-
-
-from dirty_equals import IsInstance  # , IsPartialDict
-import inspect
 
 
 def coerce_schema(
@@ -706,8 +707,6 @@ def convert_dict_arrays_to_list_records(
     return [dict(zip(data.keys(), values)) for values in zip(*data.values())]
 
 
-
-
 def write_table(workbook, xl_tbl: XlTableWriter):
     name = xl_tbl.gridschema.title
     worksheet = workbook.add_worksheet(name=name)
@@ -715,7 +714,7 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     headers = xl_tbl.gridschema.datagrid_index_name
     ix_nm = xl_tbl.gridschema.datagrid_index_name
     hd = len(ix_nm)  # header depth
-    label_index = xl_tbl.xy[0] if is_t else xl_tbl.xy[1]
+    xl_tbl.xy[0] if is_t else xl_tbl.xy[1]
     write_array = worksheet.write_row if is_t else worksheet.write_column
     write_header = worksheet.write_row if not is_t else worksheet.write_column
     header_index = xl_tbl.xy_headers[-1][1] if is_t else xl_tbl.xy_headers[-1][0]
@@ -751,7 +750,10 @@ def write_table(workbook, xl_tbl: XlTableWriter):
 
     # make table --------------------------
     length = len(list(xl_tbl.data.values())[0]) + len(ix_nm)
-    get_name = lambda n, hd: f"Column{n}" if n >= hd else ix_nm[n]
+
+    def get_name(n, hd):
+        return f"Column{n}" if n >= hd else ix_nm[n]
+
     column_labels = [get_name(n, hd) for n in range(0, length)]
 
     formula_columns = []
@@ -862,11 +864,6 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     return worksheet
 
 
-import xlsxwriter as xw
-import pandas as pd
-from pandas.io.json import build_table_schema
-
-
 def write_sheet(
     workbook: xw.Workbook,
     data: list[dict],
@@ -938,8 +935,6 @@ def from_jsons(
     workbook, worksheets, xl_tbls = wb_from_jsons(datas, gridschemas, fpth)
     workbook.close()
     return fpth
-
-
 
 
 def wb_from_dataframe(

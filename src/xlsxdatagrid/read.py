@@ -1,20 +1,22 @@
 # std libs
 import importlib.util
-import sys
 import json
+import sys
 import typing as ty
-from pathlib import Path
 from datetime import timezone
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from datamodel_code_generator import DataModelType, InputFileType, generate
+from jsonref import replace_refs
+from pydantic import AwareDatetime, BaseModel
+
 # 3rd party
-from python_calamine import CalamineWorkbook, CalamineSheet
-from datamodel_code_generator import InputFileType, generate, DataModelType
-from pydantic import BaseModel, AwareDatetime
+from python_calamine import CalamineSheet, CalamineWorkbook
 from stringcase import snakecase
 
 # local
-from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
+from xlsxdatagrid.xlsxdatagrid import DataGridMetaData, get_duration
 
 
 def fix_enum_hack(output):
@@ -74,8 +76,8 @@ def pydantic_model_from_json_schema(json_schema: str) -> ty.Type[BaseModel]:
 
 def read_metadata(s: str) -> DataGridMetaData:
     s = s.replace("#", "")
-    li = [l.split("=") for l in s.split(" - ")]
-    di = {snakecase(l[0]): l[1] for l in li}
+    li = [x.split("=") for x in s.split(" - ")]
+    di = {snakecase(x[0]): x[1] for x in li}
     return DataGridMetaData(**di)
 
 
@@ -158,13 +160,10 @@ def make_datetime_tz_aware(data, pydantic_model):
 #         return [d | {k: timedelta(d[k]) for k in keys} for d in data]
 #     else:
 #         return data
-from jsonref import replace_refs
-from xlsxdatagrid.xlsxdatagrid import get_duration
-import requests
 
 
 def parse_timedelta(data, json_schema):
-    pr = replace_refs(json_schema)["items"]["properties"]
+    pr = replace_refs(json_schema, merge_props=True)["items"]["properties"]
     keys = [k for k, v in pr.items() if "format" in v and v["format"] == "duration"]
 
     if len(keys) > 0:
@@ -173,12 +172,10 @@ def parse_timedelta(data, json_schema):
         return data
 
 
-def get_jsonschema(metadata: DataGridMetaData) -> dict:
-    if metadata.schema_url is not None:
-        return requests.get(metadata.schema_url).json()
-    return None
-
-
+# def get_jsonschema(metadata: DataGridMetaData) -> dict:
+#     if metadata.schema_url is not None:
+#         return requests.get(metadata.schema_url).json()
+#     return None
 
 
 def read_worksheet(
@@ -207,8 +204,6 @@ def read_worksheet(
             return data, metadata
     else:
         return data, metadata
-
-
 
 
 def read_excel(

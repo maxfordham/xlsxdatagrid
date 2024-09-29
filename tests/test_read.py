@@ -1,12 +1,19 @@
-from xlsxdatagrid.read import read_excel, pydantic_model_from_json_schema
-from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
-from .constants import PATH_XL, PATH_XL_TRANSPOSED, PATH_JSONSCHEMA_RAW
-from .test_xlsxdatagrid import TestArray, TestArrayTransposed
-from pydantic import BaseModel
-import pytest
+import datetime
 import json
 import typing as ty
-import datetime
+
+from pydantic import BaseModel
+
+from xlsxdatagrid.read import pydantic_model_from_json_schema, read_excel
+from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
+
+from .constants import PATH_JSONSCHEMA_RAW
+from .test_xlsxdatagrid import (
+    TestArray,
+    TestArrayTransposed,
+    from_json_with_null,  # req. fixture  # noqa: F401
+    write_table_test,  # req. fixture  # noqa: F401
+)
 
 schemas = [TestArray.model_json_schema(), TestArrayTransposed.model_json_schema()]
 schemas = {s["title"]: s for s in schemas}
@@ -99,8 +106,8 @@ def test_get_jsonschema():
     assert jsonschema["title"] == "TestArray"
 
 
-@pytest.mark.parametrize("path", [PATH_XL, PATH_XL_TRANSPOSED])
-def test_read_excel(path):
+def test_read_excel(write_table_test):  # noqa: F811
+    path = write_table_test
     obj, metadata = read_excel(path, get_jsonschema=get_jsonschema)
     assert isinstance(obj, list)
     assert len(obj) == 3
@@ -111,7 +118,7 @@ def get_raw_jsonschema(metadata: DataGridMetaData) -> dict:
     return json.loads(PATH_JSONSCHEMA_RAW.read_text())
 
 
-def test_read_excel_with_null(from_json_with_null):
+def test_read_excel_with_null(from_json_with_null):  # noqa: F811
     fpth, data, schema = from_json_with_null
     obj, metadata = read_excel(
         fpth, get_jsonschema=lambda *args: schema.model_json_schema()

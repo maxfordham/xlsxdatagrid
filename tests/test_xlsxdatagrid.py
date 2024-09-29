@@ -1,36 +1,46 @@
-import requests
-from enum import Enum
-from typing_extensions import Annotated
+import typing as ty
 from datetime import date, datetime, time, timedelta
+from enum import StrEnum
 
+import jsonref
+import pandas as pd
+import pytest
+import requests
+import xlsxwriter as xw
+from dirty_equals import IsInstance
+from frictionless import Package, Resource
 from pydantic import (
     BaseModel,
-    RootModel,
-    Field,
     ConfigDict,
-    computed_field,
-    StringConstraints,
+    Field,
     NaiveDatetime,
     # NaiveDate,
+    RootModel,
+    StringConstraints,
+    computed_field,
 )
-import pytest
-import xlsxwriter as xw
-import jsonref
-from . import constants as c
+from typing_extensions import Annotated
 
-
+import xlsxdatagrid.xlsxdatagrid as xdg
 from xlsxdatagrid.xlsxdatagrid import (
-    write_table,
-    convert_records_to_datagrid_schema,
-    XlTableWriter,
     DataGridSchema,
+    FieldSchema,
+    XlTableWriter,
+    coerce_schema,
     convert_list_records_to_dict_arrays,
+    convert_records_to_datagrid_schema,
+    from_pydantic_object,
+    from_pydantic_objects,
+    wb_from_dataframe,
+    wb_from_dataframes,
+    write_table,
 )
 
-from xlsxdatagrid.xlsxdatagrid import from_pydantic_object, from_pydantic_objects
+from . import constants as c
+from jsonref import replace_refs
 
 
-class MyColor(Enum):
+class MyColor(StrEnum):
     RED = "red"
     GREEN = "green"
     BLUE = "blue"
@@ -267,23 +277,16 @@ def get_pydantic_test_inputs(is_transposed=False):
         return c.PATH_XL, get_test_array(is_transposed)
 
 
-def test_coerce_schema():
-    schema = coerce_schema(TEST_ARRAY_SCHEMA)
-    assert IsInstance(DataGridSchema, schema)
-
-    schema = coerce_schema(TestArrayTransposed)
-    assert IsInstance(DataGridSchema, schema)
-
-    schema = coerce_schema(TestArray)
-    assert IsInstance(DataGridSchema, schema)
-
-
-@pytest.mark.parametrize("is_transposed", [True, False])
-def test_pydantic_object_write_table(is_transposed):
-    fpth, pyd_obj = get_pydantic_test_inputs(is_transposed=is_transposed)
-
+@pytest.fixture(params=[True, False])
+def write_table_test(request):
+    fpth, pyd_obj = get_pydantic_test_inputs(is_transposed=request.param)
     fpth.unlink(missing_ok=True)
     fpth = from_pydantic_object(pyd_obj, fpth)
+    return fpth
+
+
+def test_pydantic_object_write_table(write_table_test):
+    fpth = write_table_test
     assert fpth.is_file()
 
 
@@ -315,7 +318,7 @@ def test_schema_and_data_write_table(is_transposed):
 
     fpth.unlink(missing_ok=True)
     gridschema = convert_records_to_datagrid_schema(schema)
-    dgschema = DataGridSchema(**gridschema)
+    DataGridSchema(**gridschema)
     xl_tbl = XlTableWriter(gridschema=gridschema, data=data)
     workbook = xw.Workbook(str(fpth))
     write_table(workbook, xl_tbl)
@@ -323,33 +326,31 @@ def test_schema_and_data_write_table(is_transposed):
     assert fpth.is_file()
 
 
-def test_schema_and_data_from_digital_schedules_api():
-    fpth = c.PATH_XL_FROM_API
-    response = requests.get(
-        "https://aectemplater-dev.maxfordham.com/type_specs/project_revision/1/object/602/grid?override_units=true"
-    )
-    assert (
-        response.status_code == 200
-    ), f"API request failed with status code {response.status_code}"
+@pytest.mark.skip(reason="needs the MXF api so skip for CI")
+class TestDigitalSchedulesApi:
+    def test_schema_and_data_from_digital_schedules_api():
+        fpth = c.PATH_XL_FROM_API
+        response = requests.get(
+            "https://aectemplater-dev.maxfordham.com/type_specs/project_revision/1/object/602/grid?override_units=true"
+        )
+        assert (
+            response.status_code == 200
+        ), f"API request failed with status code {response.status_code}"
 
-    fpth.unlink(missing_ok=True)
-    data = jsonref.replace_refs(response.json())
-    data["data"] = data["data"] + data["data"]
-    data_array = convert_list_records_to_dict_arrays(data["data"])
+        fpth.unlink(missing_ok=True)
+        data = jsonref.replace_refs(response.json(), merge_props=True)
+        data["data"] = data["data"] + data["data"]
+        data_array = convert_list_records_to_dict_arrays(data["data"])
 
-    gridschema = convert_records_to_datagrid_schema(data["$schema"])
-    gridschema["datagrid_index_name"] = ("section", "unit", "name")
-    gridschema["is_transposed"] = True
+        gridschema = convert_records_to_datagrid_schema(data["$schema"])
+        gridschema["datagrid_index_name"] = ("section", "unit", "name")
+        gridschema["is_transposed"] = True
 
-    xl_tbl = XlTableWriter(gridschema=gridschema, data=data_array)
-    workbook = xw.Workbook(str(fpth))
-    write_table(workbook, xl_tbl)
-    workbook.close()
-    assert fpth.is_file()
-
-
-from dirty_equals import IsInstance
-from xlsxdatagrid.xlsxdatagrid import coerce_schema
+        xl_tbl = XlTableWriter(gridschema=gridschema, data=data_array)
+        workbook = xw.Workbook(str(fpth))
+        write_table(workbook, xl_tbl)
+        workbook.close()
+        assert fpth.is_file()
 
 
 def test_IsInstance():
@@ -366,6 +367,18 @@ def test_IsInstance():
     assert isinstance(Foo(), BaseModel)
     assert issubclass(Foo, BaseModel)
     assert not FooArray() == IsInstance(Foo)
+
+
+def test_enum_field_schema():
+    class Test(BaseModel):
+        m_color: Annotated[MyColor, Field(json_schema_extra={"section": "unicode"})]
+
+    item = replace_refs(Test.model_json_schema(), merge_props=True)
+    name = "m_color"
+    fschema = item.get("properties").get(name) | {"name": name}
+
+    f = FieldSchema(**fschema)
+    assert f == IsInstance(FieldSchema)
 
 
 def test_coerce_schema():
@@ -401,11 +414,10 @@ def test_coerce_schema():
     assert coerce_schema(
         DataGridSchema(**convert_records_to_datagrid_schema(schema))
     ) == IsInstance(DataGridSchema, only_direct_instance=True)
-    print("done")
 
+    assert coerce_schema(TestArrayTransposed) == IsInstance(DataGridSchema)
 
-from frictionless import Resource
-from frictionless import Package
+    assert coerce_schema(TestArray) == IsInstance(DataGridSchema)
 
 
 def test_datapackage():
@@ -420,15 +432,11 @@ def test_datapackage():
     schema = coerce_schema(FooArray).model_dump(exclude_none=True, exclude="type")
     data = [{k: n * v for k, v in Foo().model_dump().items()} for n in range(1, 4)]
 
-    resource = Resource(data=data, schema=schema)
-    package = Package(
+    Resource(data=data, schema=schema)
+    Package(
         resources=[Resource(data=pd.DataFrame(data)) for d in data]
     )  # from arguments
     print("done")
-
-
-import pandas as pd
-from xlsxdatagrid.xlsxdatagrid import wb_from_dataframe, wb_from_dataframes
 
 
 def x_squared():
@@ -491,10 +499,6 @@ def test_wb_from_dataframes():
     )
     workbook.close()
     assert fpth.is_file()
-
-
-import xlsxdatagrid.xlsxdatagrid as xdg
-import typing as ty
 
 
 @pytest.fixture
