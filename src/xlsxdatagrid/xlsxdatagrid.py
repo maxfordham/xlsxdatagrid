@@ -115,7 +115,9 @@ XL_TABLE_PROPERTIES = (
 # ^ NOT IN USE -------------------------------
 
 
-METADATA_FSTRING: str = "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - SchemaUrl={schema_url}"
+METADATA_FSTRING: str = (
+    "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - SchemaUrl={schema_url}"
+)
 
 
 MAP_TYPES_JSON_XL = {"integer": "integer", "float": "decimal", "date": "date"}
