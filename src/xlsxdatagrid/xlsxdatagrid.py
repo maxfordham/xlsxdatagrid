@@ -1,25 +1,32 @@
+import functools
+import inspect
+import logging
 import pathlib
-from annotated_types import doc
+import typing as ty
+from datetime import date, datetime, time, timedelta
+
 import annotated_types
+import pandas as pd
+import xlsxwriter as xw
+from annotated_types import doc
+from dirty_equals import IsInstance
+from jsonref import replace_refs
+from pandas.io.json import build_table_schema
 from pydantic import (
+    AliasChoices,
     BaseModel,
-    Field,
     ConfigDict,
+    Field,
+    HttpUrl,
+    RootModel,
     computed_field,
     model_validator,
-    field_validator,
-    ValidationInfo,
 )
-from typing_extensions import Annotated
-from jsonref import replace_refs
-from annotated_types import doc
-import functools
-import typing as ty
-from xlsxdatagrid.colours import get_color_pallette
 from pydantic_extra_types.color import Color
-from typing_extensions import Annotated
-from datetime import datetime, date
-from xlsxwriter.utility import xl_rowcol_to_cell, datetime_to_excel_datetime
+from typing_extensions import Annotated, Self
+from xlsxwriter.utility import datetime_to_excel_datetime, xl_rowcol_to_cell
+
+from xlsxdatagrid.colours import get_color_pallette
 
 # https://specs.frictionlessdata.io//table-schema/
 name_doc = """The field descriptor MUST contain a name property.
@@ -108,21 +115,8 @@ XL_TABLE_PROPERTIES = (
 # ^ NOT IN USE -------------------------------
 
 
-class Constraints(BaseModel):
-    minimum: ty.Optional[ty.Union[int, float]] = None
-    maximum: ty.Optional[ty.Union[int, float]] = None
-    exclusiveMinimum: ty.Optional[bool] = None
-    exclusiveMaximum: ty.Optional[bool] = None
-    enum: ty.Optional[list[ty.Any]] = None
-    maxLength: ty.Optional[int] = None
-    minLength: ty.Optional[int] = None
+METADATA_FSTRING: str = "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - SchemaUrl={schema_url}"
 
-
-NUMERIC_CONSTRAINTS = [
-    l for l in list(Constraints.__annotations__.keys()) if l != "enum"
-]
-LI_CONSTRAINTS = list(Constraints.__annotations__.keys())
-# https://xlsxwriter.readthedocs.io/working_with_data_validation.html#criteria
 
 MAP_TYPES_JSON_XL = {"integer": "integer", "float": "decimal", "date": "date"}
 
@@ -155,15 +149,31 @@ PY2XL = {
 }
 
 
+class Constraints(BaseModel):
+    minimum: ty.Optional[ty.Union[int, float]] = None
+    maximum: ty.Optional[ty.Union[int, float]] = None
+    exclusiveMinimum: ty.Optional[bool] = None
+    exclusiveMaximum: ty.Optional[bool] = None
+    enum: ty.Optional[list[ty.Any]] = None
+    maxLength: ty.Optional[int] = None
+    minLength: ty.Optional[int] = None
+
+
+NUMERIC_CONSTRAINTS = [
+    i for i in list(Constraints.__annotations__.keys()) if i != "enum"
+]
+LI_CONSTRAINTS = list(Constraints.__annotations__.keys())
+# https://xlsxwriter.readthedocs.io/working_with_data_validation.html#criteria
+
+
 def py2xl_formula(formula, map_names):
     def replace(formula, di):
-
         for k, v in di.items():
             if k in formula:
                 formula = formula.replace(k, v)
         return formula
 
-    map_table_names = {l: f"[@[{l}]]" for l in map_names.keys()}
+    map_table_names = {x: f"[@[{x}]]" for x in map_names.keys()}
     formula = replace(formula, PY2XL)
     formula = replace(formula, map_names)
     formula = replace(formula, map_table_names)
@@ -179,7 +189,7 @@ def map_simple_numeric_constraints(di):
 
 
 def map_constraints(di):
-    li_num = get_numeric_constraints(di)
+    get_numeric_constraints(di)
     return None
 
 
@@ -187,7 +197,7 @@ class FieldSchema(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     name: Annotated[str, doc(name_doc)]
-    type: str
+    type: str  # TODO: create enum
     format: str = None
     title: Annotated[str, doc("A human readable label or title for the field")] = None
     description: Annotated[
@@ -296,31 +306,69 @@ def get_xl_constraints(f: FieldSchema):  # TODO: write text for this
         }
 
 
-METADATA_FSTRING: str = (
-    "#TemplateName={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now}"
-)
+# from urllib.parse import urlparse
+# import requests
+
+
+# def is_url_or_path(string):
+#     parsed = urlparse(string)
+#     if parsed.scheme in ("http", "https"):
+#         return "url"
+#     elif pathlib.Path(string).is_absolute() or any(
+#         sep in string for sep in (pathlib.Path().anchor, pathlib.Path().drive)
+#     ):
+#         return "path"
+#     else:
+#         return "unknown"
 
 
 class DataGridMetaData(BaseModel):
-    template_name: str = ""
+    title: str = Field(alias_choices=AliasChoices("title", "Title"))
+    name: ty.Optional[str] = Field(
+        None, alias_choices=AliasChoices("template_name", "name")
+    )
     is_transposed: bool = False  # TODO: rename -> display_transposed
     header_depth: int = Field(1, validate_default=True)
-    metadata_fstring: ty.Literal[
-        "#TemplateName={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now}"
-    ] = METADATA_FSTRING
+    schema_url: ty.Optional[HttpUrl] = Field(
+        None, alias_choices=AliasChoices("schema_url", "SchemaUrl")
+    )
+    # schema_path: ty.Optional[pathlib.Path] = Field(
+    #     None, alias_choices=AliasChoices("schema_path", "SchemaPath")
+    # ) TODO: could add this as an option
+    metadata_fstring: str = Field(
+        METADATA_FSTRING
+    )  # TODO: should this be fixed... or validate that the base string is included...
     date_time: ty.Optional[datetime] = None
     datagrid_index_name: tuple = ("name",)  # RENAME: header_field_keys
     header: list[list[str]] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def check_schema_url(cls, data: ty.Any) -> ty.Any:
+        if isinstance(data, dict):
+            if "schema_url" in data:
+                if data["schema_url"] == "None":
+                    data["schema_url"] = None
+        return data
 
     @computed_field
     def now(self) -> datetime:
         return datetime.now()
 
+    @model_validator(mode="after")
+    def check_name(self) -> Self:
+        # if self.schema_url is not None and self.schema_path is not None:
+        #     logging.warning(
+        #         "schema_url and schema_path both given, schema_url will be used to retrieve schema"
+        #     )
+        if self.name is None:
+            self.name = self.title.replace(" ", "")
+        return self
+
 
 class DataGridSchema(DataGridMetaData):
     model_config = ConfigDict(extra="allow")
 
-    title: str  # no spaces
     header_background_color: ty.Optional[Color] = None
     base_row_size: int = 20
     base_column_size: int = 64
@@ -333,13 +381,16 @@ class DataGridSchema(DataGridMetaData):
     def get_header_depth(self) -> "DataGridSchema":
         self.header_depth = len(self.datagrid_index_name)
         self.header = [
-            [getattr(f, nm) for f in self.fields] for nm in self.datagrid_index_name
-        ]
+            [
+                (lambda f, nm: getattr(f, nm) if hasattr(f, nm) else None)(f, nm)
+                for f in self.fields
+            ]
+            for nm in self.datagrid_index_name
+        ]  # TODO
         return self
 
     @computed_field
     def map_name_header(self) -> dict[str, ty.Union[str, list[str]]]:
-
         if self.datagrid_index_name == ("name",):
             return None
         elif len(self.datagrid_index_name) == 1:
@@ -362,10 +413,6 @@ class DataGridSchema(DataGridMetaData):
 def convert_date_to_excel_ordinal(d: date, offset: int = 693594):
     # the offset date value for the date of 1900-01-00 = 693594
     return d.toordinal() - offset
-
-
-from pydantic import RootModel
-from datetime import time, timedelta
 
 
 def get_datetime(d):
@@ -416,7 +463,6 @@ class XlTableWriter(BaseModel):
 
     @model_validator(mode="after")
     def build(self) -> "XlTableWriter":
-
         self.metadata = self.gridschema.metadata_fstring.format(
             **self.gridschema.model_dump()
         )
@@ -425,16 +471,18 @@ class XlTableWriter(BaseModel):
         ix_nm = self.gridschema.datagrid_index_name  # column headings
         hd = self.gridschema.header_depth  # header depth
         fd_nns = self.gridschema.field_names  # field names
-        length = len(self.data[fd_nns[0]]) - 1  # length of data arrays
+        length = (
+            len(self.data[fd_nns[0]]) - 1 if len(self.data) > 0 else 0
+        )  # length of data arrays
         self.format_headers = hd * [None]
 
         # ensure data and key col names in same order
         if self.gridschema.field_names != list(self.data.keys()):
             self.data = {
-                l: (lambda l, data: data[l] if l in data.keys() else [None] * length)(
-                    l, self.data
+                x: (lambda x, data: data[x] if x in data.keys() else [None] * length)(
+                    x, self.data
                 )
-                for l in self.gridschema.field_names
+                for x in self.gridschema.field_names
             }
         assert self.gridschema.field_names == list(self.data.keys())
         # TODO: allow option of only outputting fields which have data associated with them
@@ -507,7 +555,7 @@ class XlTableWriter(BaseModel):
             }
 
         for v in di_section_colors.values():
-            self.formats = self.formats | {f"{l[1]}": {"bg_color": l[1]} for l in v}
+            self.formats = self.formats | {f"{x[1]}": {"bg_color": x[1]} for x in v}
 
         for k, v in di_section_colors.items():
             r1, c1, r2, c2 = self.rng_headers[ix_nm.index(k)]
@@ -572,13 +620,28 @@ def flatten_allOf(di: dict) -> dict:
         return di
 
 
+def flatten_anyOf(fields: list) -> list:
+    for field in fields:
+        if "anyOf" in field.keys():
+            types = list(set([f["type"] for f in field["anyOf"]]))
+            if len(types) == 2:
+                field["type"] = field["anyOf"][0]["type"]
+            if len(types) > 2:
+                logging.warning(
+                    f"more than 2 types allowed ({types})... for {field['name']}"
+                )
+            field.pop("anyOf")
+    return fields
+
+
 def convert_records_to_datagrid_schema(schema: dict):
     li_constraints = list(Constraints.__annotations__.keys())
-    gridschema = replace_refs(schema)
+    gridschema = replace_refs(schema, merge_props=True)
     gridschema["fields"] = [
         flatten_allOf(v) | {"name": k}
         for k, v in gridschema["items"]["properties"].items()
     ]
+    gridschema["fields"] = flatten_anyOf(gridschema["fields"])
     # move constraints
     for n in range(0, len(gridschema["fields"])):
         for k in list(gridschema["fields"][n].keys()):
@@ -595,16 +658,53 @@ def convert_records_to_datagrid_schema(schema: dict):
     return gridschema
 
 
+def coerce_schema(
+    schema: ty.Union[dict, DataGridSchema, BaseModel, ty.Type[BaseModel]],
+) -> DataGridSchema:
+    if schema == IsInstance(DataGridSchema, only_direct_instance=True):
+        return schema  # its already a `DataGridSchema`
+    elif isinstance(schema, BaseModel):
+        return DataGridSchema(
+            **convert_records_to_datagrid_schema(schema.model_json_schema())
+        )  # its a pydantic object
+    elif inspect.isclass(schema) and issubclass(schema, BaseModel):
+        return DataGridSchema(
+            **convert_records_to_datagrid_schema(schema.model_json_schema())
+        )  # its a pydantic model
+    elif (
+        isinstance(schema, dict)
+        and "fields" in schema.keys()
+        and isinstance(schema["fields"], list)
+    ):
+        return DataGridSchema(**schema)  # its a frictionless schema
+    elif (
+        isinstance(schema, dict)
+        and schema["type"] == "array"
+        and "items" in schema.keys()
+    ):
+        return DataGridSchema(
+            **convert_records_to_datagrid_schema(schema)
+        )  # its a json schema as array of object records
+    else:
+        raise AttributeError(
+            "schema must be a `DataGridSchema`,",
+            "a pydantic array of objects jsonschema",
+            f"or a frictionless datagrid schema, not: {schema}",
+        )
+
+
 def convert_list_records_to_dict_arrays(data: list[dict]) -> dict[str, list]:
+    if len(data) == 0:
+        return {}
     return {k: [dic[k] for dic in data] for k in data[0]}
 
 
-def get_data_and_schema(pyd_obj: ty.Type[BaseModel]) -> tuple[dict[str, list], dict]:
-    schema = pyd_obj.model_json_schema(mode="serialization")
-    gridschema = convert_records_to_datagrid_schema(schema)
-    data = pyd_obj.model_dump(mode="json")  # mode="json"
-    data = convert_list_records_to_dict_arrays(data)
-    return data, DataGridSchema(**gridschema)
+def convert_dict_arrays_to_list_records(
+    data: dict[str, list],
+) -> list[dict]:  # NOT IN USE
+    if len(data) == 0:
+        return []
+    return [dict(zip(data.keys(), values)) for values in zip(*data.values())]
 
 
 def write_table(workbook, xl_tbl: XlTableWriter):
@@ -614,7 +714,7 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     headers = xl_tbl.gridschema.datagrid_index_name
     ix_nm = xl_tbl.gridschema.datagrid_index_name
     hd = len(ix_nm)  # header depth
-    label_index = xl_tbl.xy[0] if is_t else xl_tbl.xy[1]
+    xl_tbl.xy[0] if is_t else xl_tbl.xy[1]
     write_array = worksheet.write_row if is_t else worksheet.write_column
     write_header = worksheet.write_row if not is_t else worksheet.write_column
     header_index = xl_tbl.xy_headers[-1][1] if is_t else xl_tbl.xy_headers[-1][0]
@@ -650,7 +750,10 @@ def write_table(workbook, xl_tbl: XlTableWriter):
 
     # make table --------------------------
     length = len(list(xl_tbl.data.values())[0]) + len(ix_nm)
-    get_name = lambda n, hd: f"Column{n}" if n >= hd else ix_nm[n]
+
+    def get_name(n, hd):
+        return f"Column{n}" if n >= hd else ix_nm[n]
+
     column_labels = [get_name(n, hd) for n in range(0, length)]
 
     formula_columns = []
@@ -700,10 +803,13 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     # write arrays
     for k, v in xl_tbl.xy_arrays.items():
         if k not in formula_columns:
+            # li = list(np.array(xl_tbl.data[k]))
+            li = xl_tbl.data[k]
+
             if k in format_arrays:
-                write_array(*v, xl_tbl.data[k], format_arrays[k])
+                write_array(*v, li, format_arrays[k])
             else:
-                write_array(*v, xl_tbl.data[k])
+                write_array(*v, li)
 
     if len(ix_nm) > 1:
         if xl_tbl.gridschema.is_transposed:
@@ -755,39 +861,181 @@ def write_table(workbook, xl_tbl: XlTableWriter):
     # write metadata
     worksheet.write(*xl_tbl.xy, xl_tbl.metadata, header_label_cell_format)
     # worksheet.add_table(*xl_tbl.tbl_range, options)
-    return None
+    return worksheet
 
 
-def from_jsonschema_and_data(data: dict, gridschema: dict, fpth: pathlib.Path = None):
+def write_sheet(
+    workbook: xw.Workbook,
+    data: list[dict],
+    gridschema: ty.Union[dict, DataGridSchema, BaseModel, ty.Type[BaseModel]],
+) -> tuple[xw.worksheet.Worksheet, XlTableWriter]:
+    gridschema = coerce_schema(gridschema)
+    data = convert_list_records_to_dict_arrays(data)
+    xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
+    return write_table(workbook, xl_tbl), xl_tbl
 
+
+def write_sheets(
+    workbook: xw.Workbook,
+    datas: list[list[dict]],
+    gridschemas: list[ty.Union[dict, DataGridSchema, BaseModel, ty.Type[BaseModel]]],
+) -> tuple[list[xw.worksheet.Worksheet], list[XlTableWriter]]:
+    return zip(
+        *[
+            write_sheet(workbook, data, schema)
+            for data, schema in zip(datas, gridschemas)
+        ]
+    )
+
+
+def wb_from_json(
+    data: list[dict], schema: dict, fpth: ty.Optional[pathlib.Path] = None
+) -> tuple[xw.Workbook, XlTableWriter, xw.worksheet.Worksheet]:
+    if fpth is None:
+        fpth = pathlib.Path(schema.get("title") + ".xlsx")
+    workbook = xw.Workbook(str(fpth))
+    worksheet, xl_tbl = write_sheet(workbook, data=data, gridschema=schema)
+    return workbook, xl_tbl, worksheet
+
+
+def wb_from_jsons(
+    datas: list[list[dict]],
+    schemas: list[ty.Union[dict, DataGridSchema, BaseModel]],
+    fpth: pathlib.Path,
+) -> tuple[xw.Workbook, XlTableWriter, xw.worksheet.Worksheet]:
+    workbook = xw.Workbook(str(fpth))
+    # schemas = coerce_lengths(len(datas), schemas)
+    worksheets, xl_tbls = write_sheets(workbook, datas, schemas)
+    return workbook, worksheets, xl_tbls
+
+
+def from_json(
+    data: dict,
+    schema: ty.Union[dict, DataGridSchema, BaseModel],
+    fpth: ty.Optional[pathlib.Path] = None,
+    is_transposed: ty.Optional[bool] = None,
+):
+    gridschema = coerce_schema(schema)
+    if is_transposed is not None:
+        gridschema.is_transposed = is_transposed
     if fpth is None:
         fpth = pathlib.Path(gridschema.title + ".xlsx")
-
-    xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
-    workbook = xw.Workbook(str(fpth))
-    write_table(workbook, xl_tbl)
+    workbook, xl_tbl, worksheet = wb_from_json(data, gridschema, fpth=fpth)
     workbook.close()
     return fpth
 
 
-def from_jsonschemas_and_datas(
-    data: list[dict], gridschema: list[dict], fpth: pathlib.Path = None
+def from_jsons(
+    datas: list[list[dict]],
+    gridschemas: list[ty.Union[dict, DataGridSchema, BaseModel]],
+    fpth: pathlib.Path = None,
 ):
-    assert len(data) == len(gridschema)
-    pass
+    if fpth is None:
+        fpth = pathlib.Path("output" + ".xlsx")
+    workbook, worksheets, xl_tbls = wb_from_jsons(datas, gridschemas, fpth)
+    workbook.close()
+    return fpth
+
+
+def wb_from_dataframe(
+    dataframe: pd.DataFrame, fpth: pathlib.Path, schema: ty.Optional[dict] = None
+) -> tuple[xw.Workbook, XlTableWriter, xw.worksheet.Worksheet]:
+    schema = (lambda s, df: build_table_schema(df) if s is None else s)(
+        schema, dataframe
+    )
+    if "title" not in schema.keys():
+        schema["title"] = fpth.stem
+    data = dataframe.reset_index().to_dict(orient="records")
+    return wb_from_json(data, schema, fpth)
+
+
+def coerce_lengths(length: int, *args: ty.Union[ty.Any, list]):
+    return [
+        (lambda a: length * [a] if not isinstance(a, list) else a)(a) for a in args
+    ]  # coerce fixed attributes into list of equal length to lead
+
+
+def ensure_titles_in_schemas(schemas):
+    return [
+        (lambda n, s: s | {"title": f"Sheet{n}"} if "title" not in s else s)(n + 1, s)
+        for n, s in enumerate(schemas)
+    ]
+
+
+def wb_from_dataframes(
+    dataframes: list[pd.DataFrame],
+    fpth: pathlib.Path,
+    schemas: ty.Optional[ty.Union[dict, list[dict]]] = None,
+    titles: list[str] = None,
+) -> tuple[xw.Workbook, list[XlTableWriter], list[xw.worksheet.Worksheet]]:
+    # resource = Resource(dataframe)
+    # data = resource.read_rows()
+    # TODO: use frictionless to get data and schema ?
+    #       ^ https://github.com/frictionlessdata/frictionless-py/issues/1678
+
+    (schemas,) = coerce_lengths(len(dataframes), schemas)
+    schemas = [
+        (lambda s, df: build_table_schema(df) if s is None else s)(schema, dataframe)
+        for schema, dataframe in zip(schemas, dataframes)
+    ]
+    if titles is not None:
+        schemas = [s | {"title": t} for s, t in zip(schemas, titles)]
+    else:
+        schemas = ensure_titles_in_schemas(schemas)
+
+    datas = [
+        dataframe.reset_index().fillna("").to_dict(orient="records")
+        for dataframe in dataframes
+    ]
+    workbook = xw.Workbook(str(fpth))
+    worksheets, xl_tbls = write_sheets(workbook, datas, schemas)
+
+    return workbook, worksheets, xl_tbls
+
+
+def from_dataframe(
+    dataframe: pd.DataFrame, fpth: pathlib.Path, schema=None
+) -> pathlib.Path:
+    workbook, xl_tbl, worksheet = wb_from_dataframe(dataframe, fpth, schema)
+    workbook.close()
+    return fpth
+
+
+def from_dataframes(
+    dataframes: list[pd.DataFrame],
+    fpth: pathlib.Path,
+    schemas: ty.Optional[ty.Union[dict, list[dict]]] = None,
+    titles: list[str] = None,
+) -> pathlib.Path:
+    workbook, xl_tbls, worksheets = wb_from_dataframes(
+        dataframes, fpth, schemas, titles
+    )
+    workbook.close()
+    return fpth
+
+
+def get_data_and_dgschema(
+    pyd_obj: ty.Type[BaseModel],
+) -> tuple[dict[str, list], dict]:
+    schema = pyd_obj.model_json_schema(mode="serialization")
+    data = pyd_obj.model_dump(mode="json")
+    return data, schema
 
 
 def from_pydantic_object(
     pydantic_object: ty.Type[BaseModel], fpth: pathlib.Path = None
 ) -> pathlib.Path:
-
-    data, gridschema = get_data_and_schema(pydantic_object)
-
-    return from_jsonschema_and_data(data, gridschema, fpth=fpth)
+    data, schema = get_data_and_dgschema(pydantic_object)
+    return from_json(data, schema, fpth=fpth)
 
 
 def from_pydantic_objects(
     pydantic_objects: list[ty.Type[BaseModel]], fpth: pathlib.Path
 ) -> pathlib.Path:
-
-    pass
+    datas, schemas = zip(
+        *[
+            get_data_and_dgschema(pydantic_object)
+            for pydantic_object in pydantic_objects
+        ]
+    )
+    return from_jsons(datas, schemas, fpth=fpth)

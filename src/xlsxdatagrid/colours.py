@@ -1,15 +1,16 @@
+import logging
+
 from palettable.tableau import (
-    Tableau_10,
-    Tableau_20,
     BlueRed_6,
     BlueRed_12,
-    PurpleGray_6,
-    PurpleGray_12,
     GreenOrange_6,
     GreenOrange_12,
+    PurpleGray_6,
+    PurpleGray_12,
+    Tableau_10,
+    Tableau_20,
 )
 from pydantic_extra_types.color import Color
-import logging
 
 BANG_WONG_COLORS = dict(
     black=Color("RGB(0, 0, 0)"),
@@ -66,7 +67,6 @@ def get_color_pallette(
             elif k[1][1] < length <= _max:
                 pass
             elif length > _max:
-
                 logging.warning(f"don't have a colour pallette of length: {length}")
                 extra = length - _max
                 if extra > _max:

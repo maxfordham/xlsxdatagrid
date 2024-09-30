@@ -1,0 +1,25 @@
+{
+    "properties": {
+        "AInt": {
+            "default": 1,
+            "section": "numeric",
+            "title": "A Int",
+            "type": "integer"
+        },
+        "Abbreviation": {
+            "enum": [
+                "yellow",
+                "red",
+                "violet"
+            ],
+            "type": "string",
+            "default": "yellow",
+            "description": "pick colour"
+        }
+    },
+    "required": [
+        "Abbreviation"
+    ],
+    "title": "Test",
+    "type": "object"
+}

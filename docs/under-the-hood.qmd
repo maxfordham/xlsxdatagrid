@@ -1,0 +1,32 @@
+
+
+## Execution
+
+```{mermaid}
+stateDiagram
+    [*] --> Still
+    [*1*] --> Still
+    Still --> [*]
+
+    Still --> Moving
+    Moving --> Still
+    Moving --> Crash
+    Crash --> [*]
+    Crash --> [some]
+```
+
+```{python}
+from frictionless import Resource, formats
+
+resource = Resource(data=[['id', 'name'], [1, 'english'], [2, 'german']])
+resource.write('table-output-sheet.xls', control=formats.ExcelControl(sheet='My Table'))
+
+```
+
+
+```{python}
+a = ""
+issubclass(a, str)
+
+```
+

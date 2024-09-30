@@ -1,27 +1,22 @@
-from xlsxdatagrid.read import read_excel, pydantic_model_from_json_schema
-from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
-from .constants import PATH_XL, PATH_XL_TRANSPOSED
-from .test_xlsxdatagrid import TestArray, TestArrayTransposed
-import typing as ty
-from pydantic import BaseModel
-import pytest
-import pathlib
+import datetime
 import json
-from pathlib import Path
-from tempfile import TemporaryDirectory
-from datamodel_code_generator import InputFileType, generate
-from datamodel_code_generator import DataModelType
-import importlib.util
-import sys
+import typing as ty
 
-# PATH_SCHEMA = pathlib.Path()
+from pydantic import BaseModel
+
+from xlsxdatagrid.read import pydantic_model_from_json_schema, read_excel
+from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
+
+from .constants import PATH_JSONSCHEMA_RAW
+from .test_xlsxdatagrid import (
+    TestArray,
+    TestArrayTransposed,
+    from_json_with_null,  # req. fixture  # noqa: F401
+    write_table_test,  # req. fixture  # noqa: F401
+)
+
 schemas = [TestArray.model_json_schema(), TestArrayTransposed.model_json_schema()]
 schemas = {s["title"]: s for s in schemas}
-
-# paths = list(pathlib.Path("tests").glob("*schema.*"))
-# for p in paths:
-#     schema = json.loads(p.read_text())
-#     schemas[schema["title"]] = schema
 
 
 # def pydantic_model_from_json_schema(json_schema: str) -> ty.Type[BaseModel]:
@@ -49,7 +44,7 @@ def get_schema(name, schemas=schemas):
 
 
 def get_jsonschema(metadata: DataGridMetaData) -> dict:
-    return schemas.get(metadata.template_name)
+    return schemas.get(metadata.name)
 
 
 TEST_JSON_SCHEMA: str = """{
@@ -63,6 +58,34 @@ TEST_JSON_SCHEMA: str = """{
     }
 }"""
 
+TEST_JSON_SCHEMA1: str = """{
+    "properties": {
+        "a_int": {
+            "default": 1,
+            "section": "numeric",
+            "title": "A Int",
+            "type": "integer"
+        },
+        "Abbreviation": {
+            "enum": [
+                "yellow",
+                "red",
+                "violet"
+            ],
+            "type": "string",
+            "default": "yellow",
+            "description": "pick colour"
+        }
+    },
+    "required": [
+        "Abbreviation"
+    ],
+    "title": "Test",
+    "type": "object"
+}"""
+
+#
+
 
 def test_load_model_from_json_schema():
     pydantic_model = pydantic_model_from_json_schema(json.loads(TEST_JSON_SCHEMA))
@@ -70,15 +93,56 @@ def test_load_model_from_json_schema():
     assert isinstance(pydantic_model(), BaseModel)
 
 
+def test_load_model_from_json_schema_issue2091():
+    # TODO: remove this once resolved: https://github.com/koxudaxi/datamodel-code-generator/issues/2091
+    pydantic_model = pydantic_model_from_json_schema(json.loads(TEST_JSON_SCHEMA1))
+    assert issubclass(pydantic_model, BaseModel)
+    assert isinstance(pydantic_model(Abbreviation="yellow"), BaseModel)
+
+
 def test_get_jsonschema():
-    metadata = DataGridMetaData(template_name="TestArray")
+    metadata = DataGridMetaData(name="TestArray", title="Test Array")
     jsonschema = get_jsonschema(metadata)
     assert jsonschema["title"] == "TestArray"
 
 
-@pytest.mark.parametrize("path", [PATH_XL, PATH_XL_TRANSPOSED])
-def test_read_excel(path):
-    obj = read_excel(path, get_jsonschema=get_jsonschema)
+def test_read_excel(write_table_test):  # noqa: F811
+    path = write_table_test
+    obj, metadata = read_excel(path, get_jsonschema=get_jsonschema)
     assert isinstance(obj, list)
     assert len(obj) == 3
     print("done")
+
+
+def get_raw_jsonschema(metadata: DataGridMetaData) -> dict:
+    return json.loads(PATH_JSONSCHEMA_RAW.read_text())
+
+
+def test_read_excel_with_null(from_json_with_null):  # noqa: F811
+    fpth, data, schema = from_json_with_null
+    obj, metadata = read_excel(
+        fpth, get_jsonschema=lambda *args: schema.model_json_schema()
+    )
+    assert obj == data
+
+
+def test_timedelta():
+    # https://github.com/koxudaxi/datamodel-code-generator/issues/1624
+    schema = {
+        "title": "Test",
+        "type": "object",
+        "properties": {
+            "a_int": {"default": 1, "title": "A Int", "type": "integer"},
+            "i_duration": {
+                "default": "PT2H33M3S",
+                "format": "duration",
+                "title": "I Duration",
+                "type": "string",
+            },
+        },
+    }
+
+    Model = pydantic_model_from_json_schema(schema)
+    assert (
+        Model.model_fields["i_duration"].annotation == ty.Optional[datetime.timedelta]
+    )

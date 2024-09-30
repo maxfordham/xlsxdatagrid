@@ -1,43 +1,46 @@
-import requests
-import pathlib
-from enum import Enum
-from typing_extensions import Annotated
+import typing as ty
 from datetime import date, datetime, time, timedelta
+from enum import StrEnum
 
+import jsonref
+import pandas as pd
+import pytest
+import requests
+import xlsxwriter as xw
+from dirty_equals import IsInstance
+from frictionless import Package, Resource
 from pydantic import (
     BaseModel,
-    RootModel,
-    Field,
     ConfigDict,
-    computed_field,
-    StringConstraints,
+    Field,
     NaiveDatetime,
     # NaiveDate,
+    RootModel,
+    StringConstraints,
+    computed_field,
 )
-import pytest
-import xlsxwriter as xw
-import jsonref
+from typing_extensions import Annotated
 
-
-from .constants import (
-    PATH_XL,
-    PATH_XL_MANY_SHEETS,
-    PATH_XL_TRANSPOSED,
-    PATH_XL_FROM_SCHEMA,
-    PATH_XL_FROM_SCHEMA_TRANSPOSED,
-    PATH_XL_FROM_API,
-)
+import xlsxdatagrid.xlsxdatagrid as xdg
 from xlsxdatagrid.xlsxdatagrid import (
-    write_table,
-    get_data_and_schema,
-    convert_records_to_datagrid_schema,
-    XlTableWriter,
     DataGridSchema,
+    FieldSchema,
+    XlTableWriter,
+    coerce_schema,
     convert_list_records_to_dict_arrays,
+    convert_records_to_datagrid_schema,
+    from_pydantic_object,
+    from_pydantic_objects,
+    wb_from_dataframe,
+    wb_from_dataframes,
+    write_table,
 )
 
+from . import constants as c
+from jsonref import replace_refs
 
-class MyColor(Enum):
+
+class MyColor(StrEnum):
     RED = "red"
     GREEN = "green"
     BLUE = "blue"
@@ -268,93 +271,278 @@ def get_test_array(is_transposed=False):
 
 
 def get_pydantic_test_inputs(is_transposed=False):
-
     if is_transposed:
-        return PATH_XL_TRANSPOSED, get_test_array(is_transposed)
+        return c.PATH_XL_TRANSPOSED, get_test_array(is_transposed)
     else:
-        return PATH_XL, get_test_array(is_transposed)
+        return c.PATH_XL, get_test_array(is_transposed)
 
 
-@pytest.mark.parametrize("is_transposed", [True, False])
-def test_pydantic_object_write_table(is_transposed):
-    fpth_xl, pyd_obj = get_pydantic_test_inputs(is_transposed=is_transposed)
+@pytest.fixture(params=[True, False])
+def write_table_test(request):
+    fpth, pyd_obj = get_pydantic_test_inputs(is_transposed=request.param)
+    fpth.unlink(missing_ok=True)
+    fpth = from_pydantic_object(pyd_obj, fpth)
+    return fpth
 
-    fpth_xl.unlink(missing_ok=True)
-    pyd_obj = get_test_array()
-    data, gridschema = get_data_and_schema(pyd_obj)
-    xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
-    workbook = xw.Workbook(str(fpth_xl))
-    write_table(workbook, xl_tbl)
-    workbook.close()
-    assert fpth_xl.is_file()
+
+def test_pydantic_object_write_table(write_table_test):
+    fpth = write_table_test
+    assert fpth.is_file()
 
 
 def test_pydantic_objects_write_tables():
-    fpth_xl, pyd_obj = get_pydantic_test_inputs(is_transposed=False)
-    fpth_xl = PATH_XL_MANY_SHEETS
-    fpth_xl.unlink(missing_ok=True)
+    fpth, pyd_obj = get_pydantic_test_inputs(is_transposed=False)
+    fpth = c.PATH_XL_MANY_SHEETS
+    fpth.unlink(missing_ok=True)
     pyd_obj = TestArray(array_to_records(ARRAY_DATA))
     pyd_obj1 = TestArray1(array_to_records(ARRAY_DATA1))
 
-    data, gridschema = get_data_and_schema(pyd_obj)
-    xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
-    workbook = xw.Workbook(str(fpth_xl))
-    write_table(workbook, xl_tbl)
-
-    data1, gridschema1 = get_data_and_schema(pyd_obj1)
-    xl_tbl1 = XlTableWriter(data=data1, gridschema=gridschema1)
-    write_table(workbook, xl_tbl1)
-
-    workbook.close()
-    assert fpth_xl.is_file()
+    fpth = from_pydantic_objects([pyd_obj, pyd_obj1], fpth)
+    assert fpth.is_file()
 
 
 def get_schema_test_inputs(is_transposed=False):
     if is_transposed:
-        return PATH_XL_FROM_SCHEMA_TRANSPOSED, TEST_ARRAY_SCHEMA_TRANSPOSED, ARRAY_DATA
+        return (
+            c.PATH_XL_FROM_SCHEMA_TRANSPOSED,
+            TEST_ARRAY_SCHEMA_TRANSPOSED,
+            ARRAY_DATA,
+        )
     else:
-        return PATH_XL_FROM_SCHEMA, TEST_ARRAY_SCHEMA, ARRAY_DATA
+        return c.PATH_XL_FROM_SCHEMA, TEST_ARRAY_SCHEMA, ARRAY_DATA
 
 
 @pytest.mark.parametrize("is_transposed", [True, False])
 def test_schema_and_data_write_table(is_transposed):
-    fpth_xl, schema, data = get_schema_test_inputs(is_transposed=is_transposed)
+    fpth, schema, data = get_schema_test_inputs(is_transposed=is_transposed)
 
-    fpth_xl.unlink(missing_ok=True)
+    fpth.unlink(missing_ok=True)
     gridschema = convert_records_to_datagrid_schema(schema)
-    dgschema = DataGridSchema(**gridschema)
+    DataGridSchema(**gridschema)
     xl_tbl = XlTableWriter(gridschema=gridschema, data=data)
-    workbook = xw.Workbook(str(fpth_xl))
+    workbook = xw.Workbook(str(fpth))
     write_table(workbook, xl_tbl)
     workbook.close()
-    assert fpth_xl.is_file()
+    assert fpth.is_file()
 
 
-def test_schema_and_data_from_digital_schedules_api():
-    fpth_xl = PATH_XL_FROM_API
-    response = requests.get(
-        "https://aectemplater-dev.maxfordham.com/type_specs/project_revision/1/object/602/grid?override_units=true"
+@pytest.mark.skip(reason="needs the MXF api so skip for CI")
+class TestDigitalSchedulesApi:
+    def test_schema_and_data_from_digital_schedules_api():
+        fpth = c.PATH_XL_FROM_API
+        response = requests.get(
+            "https://aectemplater-dev.maxfordham.com/type_specs/project_revision/1/object/602/grid?override_units=true"
+        )
+        assert (
+            response.status_code == 200
+        ), f"API request failed with status code {response.status_code}"
+
+        fpth.unlink(missing_ok=True)
+        data = jsonref.replace_refs(response.json(), merge_props=True)
+        data["data"] = data["data"] + data["data"]
+        data_array = convert_list_records_to_dict_arrays(data["data"])
+
+        gridschema = convert_records_to_datagrid_schema(data["$schema"])
+        gridschema["datagrid_index_name"] = ("section", "unit", "name")
+        gridschema["is_transposed"] = True
+
+        xl_tbl = XlTableWriter(gridschema=gridschema, data=data_array)
+        workbook = xw.Workbook(str(fpth))
+        write_table(workbook, xl_tbl)
+        workbook.close()
+        assert fpth.is_file()
+
+
+def test_IsInstance():
+    class Foo(BaseModel):
+        a: str = "a"
+
+    class FooArray(RootModel):
+        root: list[Foo] = [Foo()]
+
+    assert Foo() == IsInstance(Foo)
+    assert Foo() == IsInstance(BaseModel)
+    assert Foo() == IsInstance(Foo, only_direct_instance=True)
+    assert Foo() != IsInstance(BaseModel, only_direct_instance=True)
+    assert isinstance(Foo(), BaseModel)
+    assert issubclass(Foo, BaseModel)
+    assert not FooArray() == IsInstance(Foo)
+
+
+def test_enum_field_schema():
+    class Test(BaseModel):
+        m_color: Annotated[MyColor, Field(json_schema_extra={"section": "unicode"})]
+
+    item = replace_refs(Test.model_json_schema(), merge_props=True)
+    name = "m_color"
+    fschema = item.get("properties").get(name) | {"name": name}
+
+    f = FieldSchema(**fschema)
+    assert f == IsInstance(FieldSchema)
+
+
+def test_coerce_schema():
+    class Foo(BaseModel):
+        a: str = "a"
+
+    class FooArray(RootModel):
+        root: list[Foo] = [Foo()]
+
+    schema = {
+        "$defs": {
+            "Foo": {
+                "properties": {"a": {"default": "a", "title": "A", "type": "string"}},
+                "title": "Foo",
+                "type": "object",
+            }
+        },
+        "default": [{"a": "a"}],
+        "items": {"$ref": "#/$defs/Foo"},
+        "title": "FooArray",
+        "type": "array",
+    }
+
+    assert coerce_schema(FooArray) == IsInstance(
+        DataGridSchema, only_direct_instance=True
     )
-    assert (
-        response.status_code == 200
-    ), f"API request failed with status code {response.status_code}"
+    assert coerce_schema(FooArray()) == IsInstance(
+        DataGridSchema, only_direct_instance=True
+    )
+    assert coerce_schema(schema) == IsInstance(
+        DataGridSchema, only_direct_instance=True
+    )
+    assert coerce_schema(
+        DataGridSchema(**convert_records_to_datagrid_schema(schema))
+    ) == IsInstance(DataGridSchema, only_direct_instance=True)
 
-    fpth_xl = pathlib.Path("./test.xlsx")
-    data = jsonref.replace_refs(response.json())
-    data["data"] = data["data"] + data["data"]
-    data_array = convert_list_records_to_dict_arrays(data["data"])
+    assert coerce_schema(TestArrayTransposed) == IsInstance(DataGridSchema)
 
-    gridschema = convert_records_to_datagrid_schema(data["$schema"])
-    # HOTFIX: Replace all anyOfs with the first type
-    for field in gridschema["fields"]:
-        if "anyOf" in field.keys():
-            field["type"] = field["anyOf"][0]["type"]
-            field.pop("anyOf")
-    gridschema["datagrid_index_name"] = ("section", "unit", "name")
-    gridschema["is_transposed"] = True
+    assert coerce_schema(TestArray) == IsInstance(DataGridSchema)
 
-    xl_tbl = XlTableWriter(gridschema=gridschema, data=data_array)
-    workbook = xw.Workbook(str(fpth_xl))
-    write_table(workbook, xl_tbl)
+
+def test_datapackage():
+    class Foo(BaseModel):
+        a: str = "a"
+        b: int = 2
+        c: float = 2.3
+
+    class FooArray(RootModel):
+        root: list[Foo] = [Foo()]
+
+    schema = coerce_schema(FooArray).model_dump(exclude_none=True, exclude="type")
+    data = [{k: n * v for k, v in Foo().model_dump().items()} for n in range(1, 4)]
+
+    Resource(data=data, schema=schema)
+    Package(
+        resources=[Resource(data=pd.DataFrame(data)) for d in data]
+    )  # from arguments
+    print("done")
+
+
+def x_squared():
+    x = range(-5, 6)
+    y = [_**2 for _ in x]
+    return pd.DataFrame({"x": x, "y": y})
+
+
+def x_cubed():
+    x = range(-5, 6)
+    y = [_**3 for _ in x]
+    return pd.DataFrame({"x": x, "y": y})
+
+
+def test_wb_from_dataframe():
+    fpth = c.PATH_FROM_DF_WITH_CHART
+    fpth.unlink(missing_ok=True)
+    df = x_squared()
+    workbook, xl_tbl, worksheet = wb_from_dataframe(df, fpth)
+
+    # TODO: support xl chart from vega-lite spec?
+    #       https://frictionlessdata.io/blog/2017/03/31/data-package-views-proposal/#graph-spec
+
+    chart = workbook.add_chart({"type": "line"})
+
+    chart.add_series(
+        {
+            "name": "x squared",
+            "categories": [worksheet.name] + list(xl_tbl.rng_arrays["x"]),
+            "values": [worksheet.name] + list(xl_tbl.rng_arrays["y"]),
+        }
+    )
+
+    # Add a chart title and some axis labels.
+    chart.set_title({"name": "x squared"})
+    chart.set_x_axis({"name": "x"})
+    chart.set_y_axis({"name": "y"})
+
+    # Set an Excel chart style.
+    chart.set_style(11)
+
+    # Add the chart to the chartsheet.
+    depth = xl_tbl.gridschema.header_depth + 4
+    width = len(xl_tbl.gridschema.fields) + 2
+    worksheet.insert_chart(depth, width, chart)
     workbook.close()
-    assert fpth_xl.is_file()
+
+    assert fpth.is_file()
+
+
+def test_wb_from_dataframes():
+    fpth = c.PATH_FROM_DF_WITH_MANY_CHARTS
+    fpth.unlink(missing_ok=True)
+    df_labels = pd.DataFrame(
+        {"a": [1, 2, 3, None], "b": list("abcd"), "c": [None, "e", "f", pd.NA]}
+    )
+    # df_labels = df_labels.fillna("")
+    workbook, worksheets, xl_tbls = wb_from_dataframes(
+        [x_squared(), x_cubed(), df_labels], fpth
+    )
+    workbook.close()
+    assert fpth.is_file()
+
+
+@pytest.fixture
+def from_json_with_null():
+    fpth = c.PATH_FROM_JSON
+    fpth.unlink(missing_ok=True)
+
+    class TestItem(BaseModel):
+        a: ty.Optional[int]
+        b: str
+        c: ty.Optional[str]
+
+    class TestGrid(RootModel):
+        root: list[TestItem]
+
+    data = [
+        {"a": 1, "b": "a", "c": None},
+        {"a": 2, "b": "b", "c": "e"},
+        {"a": 3, "b": "c", "c": "f"},
+        {"a": None, "b": "d", "c": None},
+    ]
+    xdg.from_json(data, schema=TestGrid, fpth=fpth)
+    return fpth, data, TestGrid
+
+
+def test_from_json(from_json_with_null):
+    fpth, data, TestGrid = from_json_with_null
+    assert fpth.is_file()
+
+
+@pytest.mark.parametrize("is_transposed", [True, False])
+def test_from_json_empty_data(is_transposed):
+    class TestItem(BaseModel):
+        a: ty.Optional[int]
+        b: str
+        c: ty.Optional[str]
+
+    class TestGrid(RootModel):
+        root: list[TestItem]
+
+    fpth = (
+        c.PATH_FROM_JSON_EMPTY if is_transposed else c.PATH_FROM_JSON_EMPTY_TRANSPOSED
+    )
+
+    data = [dict(a=2, b="b", c=None)]
+    xdg.from_json(data, schema=TestGrid, fpth=fpth, is_transposed=is_transposed)
+    assert fpth.is_file()

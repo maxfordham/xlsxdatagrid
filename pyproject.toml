@@ -24,7 +24,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = ["xlsxwriter", "pydantic>2", "jsonref", "palettable", "pydantic_extra_types", "python-calamine", "datamodel-code-generator", "stringcase", "frictionless"]
+dependencies = ["xlsxwriter", "pydantic>2", "jsonref", "palettable", "pydantic_extra_types", "python-calamine", "datamodel-code-generator>=0.26.1", "stringcase", "frictionless", "frictionless[pandas]", "dirty_equals"]
 
 [project.urls]
 Documentation = "https://github.com/maxfordham/xlsxdatagrid#readme"
@@ -37,52 +37,48 @@ source = "vcs"
 [tool.hatch.build.hooks.vcs]
 version-file = "src/xlsxdatagrid/__about__.py"
 
-[tool.hatch.envs.default]
-dependencies = [
-  "coverage[toml]>=6.5",
-  "pytest",
-]
-[tool.hatch.envs.default.scripts]
-test = "pytest {args:tests}"
-test-cov = "coverage run -m pytest {args:tests}"
-cov-report = [
-  "- coverage combine",
-  "coverage report",
-]
-cov = [
-  "test-cov",
-  "cov-report",
-]
-
-[[tool.hatch.envs.all.matrix]]
-python = ["3.8", "3.9", "3.10", "3.11", "3.12"]
-
-[tool.hatch.envs.types]
-dependencies = [
-  "mypy>=1.0.0",
-]
-[tool.hatch.envs.types.scripts]
-check = "mypy --install-types --non-interactive {args:src/xlsxdatagrid tests}"
-
-[tool.coverage.run]
-source_pkgs = ["xlsxdatagrid", "tests"]
-branch = true
-parallel = true
-omit = [
-  "src/xlsxdatagrid/__about__.py",
-]
-
-[tool.coverage.paths]
-xlsxdatagrid = ["src/xlsxdatagrid", "*/xlsxdatagrid/src/xlsxdatagrid"]
-tests = ["tests", "*/xlsxdatagrid/tests"]
-
-[tool.coverage.report]
-exclude_lines = [
-  "no cov",
-  "if __name__ == .__main__.:",
-  "if TYPE_CHECKING:",
-]
-
 [tool.pytest.ini_options]
 pythonpath = "src"
 testpaths = ["tests"]
+
+[tool.ruff]
+
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.pypi-dependencies]
+xlsxdatagrid = { path = ".", editable = true }
+
+[tool.pixi.tasks]
+
+
+[tool.pixi.environments]
+test = ["test"]
+docs = ["docs"]
+
+# test deps and commands 
+[tool.pixi.feature.test.dependencies]
+pytest = "*"
+ruff = ">=0.6.8,<0.7"
+
+[tool.pixi.feature.test.tasks]
+test = "pytest"
+check = "ruff check"
+fix = "ruff check --fix --select I"
+format = "ruff format"
+# ----------
+
+# docs deps and commands 
+[tool.pixi.feature.docs.dependencies]
+jupyter = "*"
+quarto = "*"
+
+# [tool.pixi.feature.docs.pypi-dependencies]
+# jupyterlab-quarto = "*"
+
+[tool.pixi.feature.docs.tasks]
+write-docs = "jupyter lab"
+# ----------
+
+
