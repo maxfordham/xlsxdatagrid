@@ -1,13 +1,18 @@
 import os
 import pathlib
-
 import pytest
 
-os.chdir(pathlib.Path(__file__).parent / "xlsxwriter-examples")
+FDIR_EXAMPLES = pathlib.Path(__file__).parent / "xlsxwriter-examples"
+
+
+@pytest.fixture()
+def move_dir():
+    FDIR_EXAMPLES.mkdir(exist_ok=True)
+    os.chdir(FDIR_EXAMPLES)
 
 
 @pytest.mark.skip()
-def test_write_chart():
+def test_write_chart(move_dir):
     #######################################################################
     #
     # An example of creating Excel Line charts with Python and XlsxWriter.
@@ -63,7 +68,7 @@ def test_write_chart():
 
 
 @pytest.mark.skip()
-def test_protected():
+def test_protected(move_dir):
     import xlsxwriter
 
     workbook = xlsxwriter.Workbook("protection.xlsx")
