@@ -1,3 +1,5 @@
+# TODO: setup auto-update pixi.lock https://pixi.sh/latest/advanced/updates_github_actions/#how-to-use
+
 name: Test and Lint
 
 on:
