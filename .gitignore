@@ -163,7 +163,6 @@ cython_debug/
 
 src/xlsxdatagrid/__about__.py
 reference/example*
-*.xlsx
 tests/xlsxwriter-examples/*
 
 .virtual_documents/*
