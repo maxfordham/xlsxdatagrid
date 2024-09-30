@@ -140,38 +140,6 @@ def make_datetime_tz_aware(data, pydantic_model):
         return data
 
 
-# def parse_timedelta(data, pydantic_model):
-
-#     def field_timedelta(field):
-#         if hasattr(field.annotation, "__args__"):
-#             if timedelta in field.annotation.__args__:
-#                 return True
-#             else:
-#                 return False
-#         elif isinstance(field.annotation, timedelta):
-#             return True
-#         else:
-#             return False
-
-#     row_model = pydantic_model.model_fields["root"].annotation.__args__[0]
-#     timedeltas = {k: v for k, v in row_model.model_fields.items() if field_timedelta(v)}
-#     if len(timedeltas) > 0:
-#         keys = list(timedeltas.keys())
-#         return [d | {k: timedelta(d[k]) for k in keys} for d in data]
-#     else:
-#         return data
-
-
-def parse_timedelta(data, json_schema):
-    pr = replace_refs(json_schema, merge_props=True)["items"]["properties"]
-    keys = [k for k, v in pr.items() if "format" in v and v["format"] == "duration"]
-
-    if len(keys) > 0:
-        return [d | {k: get_duration(d[k]) for k in keys} for d in data]
-    else:
-        return data
-
-
 # def get_jsonschema(metadata: DataGridMetaData) -> dict:
 #     if metadata.schema_url is not None:
 #         return requests.get(metadata.schema_url).json()
