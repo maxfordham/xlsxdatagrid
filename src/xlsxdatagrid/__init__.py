@@ -2,6 +2,17 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""
+root package for xlsxdatagrid
+expected usage:
+```py
+import xlsxdatagrid as xdg
+xdg.from_json(...)  # outputs excel file from json data
+xdg.from_dataframe(...)  # outputs excel file from pandas dataframe
+etc.
+```
+"""
+
 from xlsxdatagrid.read import read_excel
 from xlsxdatagrid.xlsxdatagrid import (
     from_pydantic_object,
