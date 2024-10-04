@@ -116,7 +116,7 @@ XL_TABLE_PROPERTIES = (
 
 
 METADATA_FSTRING: str = (
-    "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - SchemaUrl={datamodel_url}"
+    "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - DatamodelUrl={datamodel_url}"
 )
 
 
@@ -333,7 +333,7 @@ class DataGridMetaData(BaseModel):
     is_transposed: bool = False  # TODO: rename -> display_transposed
     header_depth: int = Field(1, validate_default=True)
     datamodel_url: ty.Optional[HttpUrl] = Field(
-        None, alias_choices=AliasChoices("datamodel_url", "SchemaUrl")
+        None, alias_choices=AliasChoices("datamodel_url", "DatamodelUrl")
     )
     # schema_path: ty.Optional[pathlib.Path] = Field(
     #     None, alias_choices=AliasChoices("schema_path", "SchemaPath")
