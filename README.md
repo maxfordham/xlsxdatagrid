@@ -1,7 +1,9 @@
 # xlsxdatagrid
 
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![PyPI - Version](https://img.shields.io/pypi/v/xlsxdatagrid.svg)](https://pypi.org/project/xlsxdatagrid)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/xlsxdatagrid.svg)](https://pypi.org/project/xlsxdatagrid)
+[![Actions status](https://github.com/maxfordham/xlsxdatagrid/workflows/CI/badge.svg)](https://github.com/maxfordham/xlsxdatagrid/actions)
 
 -----
 
