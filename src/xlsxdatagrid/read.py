@@ -8,7 +8,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from datamodel_code_generator import DataModelType, InputFileType, generate
-from jsonref import replace_refs
 from pydantic import AwareDatetime, BaseModel
 
 # 3rd party
@@ -16,8 +15,7 @@ from python_calamine import CalamineSheet, CalamineWorkbook
 from stringcase import snakecase
 
 # local
-from xlsxdatagrid.xlsxdatagrid import DataGridMetaData, get_duration
-
+from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 
 def fix_enum_hack(output):
     # HACK: delete once issue resolved: https://github.com/koxudaxi/datamodel-code-generator/issues/2091
@@ -116,7 +114,7 @@ def read_data(data) -> tuple[list[dict], DataGridMetaData]:
     return process_data(data, metadata)
 
 
-def get_jsonschema(metadata: DataGridMetaData) -> dict:
+def get_datamodel(metadata: DataGridMetaData) -> dict:
     pass
 
 
@@ -140,7 +138,7 @@ def make_datetime_tz_aware(data, pydantic_model):
         return data
 
 
-# def get_jsonschema(metadata: DataGridMetaData) -> dict:
+# def get_datamodel(metadata: DataGridMetaData) -> dict:
 #     if metadata.schema_url is not None:
 #         return requests.get(metadata.schema_url).json()
 #     return None
@@ -148,14 +146,14 @@ def make_datetime_tz_aware(data, pydantic_model):
 
 def read_worksheet(
     worksheet: CalamineSheet,
-    get_jsonschema: ty.Optional[ty.Callable[[DataGridMetaData], dict]] = None,
+    get_datamodel: ty.Optional[ty.Callable[[DataGridMetaData], dict]] = None,
     *,
     return_pydantic_model: bool = False,
 ) -> list[dict]:
     data = worksheet.to_python(skip_empty_area=True)
     data, metadata = read_data(data)
-    if get_jsonschema is not None:
-        json_schema = get_jsonschema(metadata)
+    if get_datamodel is not None:
+        json_schema = get_datamodel(metadata)
         if json_schema is not None:
             pydantic_model = pydantic_model_from_json_schema(json_schema)
 
@@ -176,11 +174,11 @@ def read_worksheet(
 
 def read_excel(
     path,
-    get_jsonschema: ty.Optional[
+    get_datamodel: ty.Optional[
         ty.Callable[[DataGridMetaData], ty.Type[BaseModel]]
     ] = None,
 ):
     workbook = CalamineWorkbook.from_path(path)
     sheet = workbook.sheet_names[0]
     worksheet = workbook.get_sheet_by_name(sheet)
-    return read_worksheet(worksheet, get_jsonschema)
+    return read_worksheet(worksheet, get_datamodel)

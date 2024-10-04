@@ -43,7 +43,7 @@ def get_schema(name, schemas=schemas):
     return schemas.get(name)
 
 
-def get_jsonschema(metadata: DataGridMetaData) -> dict:
+def get_datamodel(metadata: DataGridMetaData) -> dict:
     return schemas.get(metadata.name)
 
 
@@ -100,15 +100,15 @@ def test_load_model_from_json_schema_issue2091():
     assert isinstance(pydantic_model(Abbreviation="yellow"), BaseModel)
 
 
-def test_get_jsonschema():
+def test_get_datamodel():
     metadata = DataGridMetaData(name="TestArray", title="Test Array")
-    jsonschema = get_jsonschema(metadata)
+    jsonschema = get_datamodel(metadata)
     assert jsonschema["title"] == "TestArray"
 
 
 def test_read_excel(write_table_test):  # noqa: F811
     path = write_table_test
-    obj, metadata = read_excel(path, get_jsonschema=get_jsonschema)
+    obj, metadata = read_excel(path, get_datamodel=get_datamodel)
     assert isinstance(obj, list)
     assert len(obj) == 3
     print("done")
@@ -121,7 +121,7 @@ def get_raw_jsonschema(metadata: DataGridMetaData) -> dict:
 def test_read_excel_with_null(from_json_with_null):  # noqa: F811
     fpth, data, schema = from_json_with_null
     obj, metadata = read_excel(
-        fpth, get_jsonschema=lambda *args: schema.model_json_schema()
+        fpth, get_datamodel=lambda *args: schema.model_json_schema()
     )
     assert obj == data
 

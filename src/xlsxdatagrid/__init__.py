@@ -10,8 +10,8 @@ from xlsxdatagrid.xlsxdatagrid import (
     from_dataframes,
     from_json,
     from_jsons,
-    wb_from_pydantic_object,
-    wb_from_pydantic_objects,
+    # wb_from_pydantic_object, # TODO: Implement
+    # wb_from_pydantic_objects,
     wb_from_dataframe,
     wb_from_dataframes,
     wb_from_json,
@@ -25,8 +25,8 @@ __all__ = [
     "from_dataframes",
     "from_json",
     "from_jsons",
-    "wb_from_pydantic_object",
-    "wb_from_pydantic_objects",
+    # "wb_from_pydantic_object", # TODO: Implement
+    # "wb_from_pydantic_objects",
     "wb_from_dataframe",
     "wb_from_dataframes",
     "wb_from_json",
