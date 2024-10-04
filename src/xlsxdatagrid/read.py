@@ -137,13 +137,6 @@ def make_datetime_tz_aware(data, pydantic_model):
     else:
         return data
 
-
-# def get_datamodel(metadata: DataGridMetaData) -> dict:
-#     if metadata.schema_url is not None:
-#         return requests.get(metadata.schema_url).json()
-#     return None
-
-
 def read_worksheet(
     worksheet: CalamineSheet,
     get_datamodel: ty.Optional[ty.Callable[[DataGridMetaData], dict]] = None,

@@ -116,7 +116,7 @@ XL_TABLE_PROPERTIES = (
 
 
 METADATA_FSTRING: str = (
-    "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - SchemaUrl={schema_url}"
+    "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - SchemaUrl={datamodel_url}"
 )
 
 
@@ -325,14 +325,15 @@ def get_xl_constraints(f: FieldSchema):  # TODO: write text for this
 
 
 class DataGridMetaData(BaseModel):
+    model_config = ConfigDict(exclude_none=True)
     title: str = Field(alias_choices=AliasChoices("title", "Title"))
     name: ty.Optional[str] = Field(
         None, alias_choices=AliasChoices("template_name", "name")
     )
     is_transposed: bool = False  # TODO: rename -> display_transposed
     header_depth: int = Field(1, validate_default=True)
-    schema_url: ty.Optional[HttpUrl] = Field(
-        None, alias_choices=AliasChoices("schema_url", "SchemaUrl")
+    datamodel_url: ty.Optional[HttpUrl] = Field(
+        None, alias_choices=AliasChoices("datamodel_url", "SchemaUrl")
     )
     # schema_path: ty.Optional[pathlib.Path] = Field(
     #     None, alias_choices=AliasChoices("schema_path", "SchemaPath")
@@ -346,11 +347,11 @@ class DataGridMetaData(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def check_schema_url(cls, data: ty.Any) -> ty.Any:
+    def check_datamodel_url(cls, data: ty.Any) -> ty.Any:
         if isinstance(data, dict):
-            if "schema_url" in data:
-                if data["schema_url"] == "None":
-                    data["schema_url"] = None
+            if "datamodel_url" in data:
+                if data["datamodel_url"] == "None":
+                    data["datamodel_url"] = None
         return data
 
     @computed_field
@@ -359,9 +360,9 @@ class DataGridMetaData(BaseModel):
 
     @model_validator(mode="after")
     def check_name(self) -> Self:
-        # if self.schema_url is not None and self.schema_path is not None:
+        # if self.datamodel_url is not None and self.schema_path is not None:
         #     logging.warning(
-        #         "schema_url and schema_path both given, schema_url will be used to retrieve schema"
+        #         "datamodel_url and schema_path both given, datamodel_url will be used to retrieve schema"
         #     )
         if self.name is None:
             self.name = self.title.replace(" ", "")
