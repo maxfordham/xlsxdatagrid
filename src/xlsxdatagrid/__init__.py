@@ -31,4 +31,5 @@ __all__ = [
     "wb_from_dataframes",
     "wb_from_json",
     "wb_from_jsons",
+    "read_excel", # TODO: improve functionality here...
 ]
