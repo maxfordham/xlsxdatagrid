@@ -18,6 +18,7 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
+    ImportString,
     RootModel,
     computed_field,
     model_validator,
@@ -117,7 +118,7 @@ XL_TABLE_PROPERTIES = (
 
 METADATA_FSTRING: str = (
     "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - DatamodelUrl={datamodel_url}"
-)
+)  # TODO: build a metadrata string from what data is present. allow additions to this string but not removals.
 
 
 MAP_TYPES_JSON_XL = {"integer": "integer", "float": "decimal", "date": "date"}
@@ -308,22 +309,6 @@ def get_xl_constraints(f: FieldSchema):  # TODO: write text for this
         }
 
 
-# from urllib.parse import urlparse
-# import requests
-
-
-# def is_url_or_path(string):
-#     parsed = urlparse(string)
-#     if parsed.scheme in ("http", "https"):
-#         return "url"
-#     elif pathlib.Path(string).is_absolute() or any(
-#         sep in string for sep in (pathlib.Path().anchor, pathlib.Path().drive)
-#     ):
-#         return "path"
-#     else:
-#         return "unknown"
-
-
 class DataGridMetaData(BaseModel):
     model_config = ConfigDict(exclude_none=True)
     title: str = Field(alias_choices=AliasChoices("title", "Title"))
@@ -335,9 +320,12 @@ class DataGridMetaData(BaseModel):
     datamodel_url: ty.Optional[HttpUrl] = Field(
         None, alias_choices=AliasChoices("datamodel_url", "DatamodelUrl")
     )
-    # schema_path: ty.Optional[pathlib.Path] = Field(
-    #     None, alias_choices=AliasChoices("schema_path", "SchemaPath")
-    # ) TODO: could add this as an option
+    datamodel_path: ty.Optional[pathlib.Path] = Field(
+        None, alias_choices=AliasChoices("datamodel_path", "DatamodelPath")
+    ) # TODO: add as an option
+    datamodel_importstr: ty.Optional[ImportString] = Field(
+        None, alias_choices=AliasChoices("datamodel_importstr", "DatamodelImportstr")
+    ) # TODO: add as an option. preferred when present. 
     metadata_fstring: str = Field(
         METADATA_FSTRING
     )  # TODO: should this be fixed... or validate that the base string is included...
@@ -360,10 +348,6 @@ class DataGridMetaData(BaseModel):
 
     @model_validator(mode="after")
     def check_name(self) -> Self:
-        # if self.datamodel_url is not None and self.schema_path is not None:
-        #     logging.warning(
-        #         "datamodel_url and schema_path both given, datamodel_url will be used to retrieve schema"
-        #     )
         if self.name is None:
             self.name = self.title.replace(" ", "")
         return self
@@ -389,7 +373,7 @@ class DataGridSchema(DataGridMetaData):
                 for f in self.fields
             ]
             for nm in self.datagrid_index_name
-        ]  # TODO
+        ]
         return self
 
     @computed_field
@@ -449,7 +433,7 @@ class XlTableWriter(BaseModel):
     format_headers: list = [None]
     tbl_range: tuple[int, int, int, int] = (0, 0, 0, 0)
     tbl_headers: ty.Optional[list[dict]] = None
-    validation_arrays: ty.Optional[dict[str, dict]] = None
+    validation_arrays: ty.Optional[dict[str, dict]] = None  # add validation to simple types: integer, float, string
     formula_arrays: dict[str, str] = {}
     formats: dict[str, dict] = {
         "datetime": DATETIME_FORMAT,
