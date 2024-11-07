@@ -9,6 +9,7 @@ import requests
 import xlsxwriter as xw
 from dirty_equals import IsInstance
 from frictionless import Package, Resource
+from jsonref import replace_refs
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -34,10 +35,10 @@ from xlsxdatagrid.xlsxdatagrid import (
     wb_from_dataframe,
     wb_from_dataframes,
     write_table,
+    convert_dict_arrays_to_list_records
 )
 
 from . import constants as c
-from jsonref import replace_refs
 
 
 class MyColor(StrEnum):
@@ -251,11 +252,6 @@ ARRAY_DATA = {
 ARRAY_DATA1 = {k: v * 2 for k, v in ARRAY_DATA.items() if k in Test1.model_fields}
 
 
-def array_to_records(di):
-    length = len(list(di.values())[0])
-    keys = list(di.keys())
-    return [dict(zip(keys, [di[k][n] for k in keys])) for n in range(0, length)]
-
 
 def get_test_array(is_transposed=False):
     t1, t2, t3 = (
@@ -294,8 +290,8 @@ def test_pydantic_objects_write_tables():
     fpth, pyd_obj = get_pydantic_test_inputs(is_transposed=False)
     fpth = c.PATH_XL_MANY_SHEETS
     fpth.unlink(missing_ok=True)
-    pyd_obj = TestArray(array_to_records(ARRAY_DATA))
-    pyd_obj1 = TestArray1(array_to_records(ARRAY_DATA1))
+    pyd_obj = TestArray(convert_dict_arrays_to_list_records(ARRAY_DATA))
+    pyd_obj1 = TestArray1(convert_dict_arrays_to_list_records(ARRAY_DATA1))
 
     fpth = from_pydantic_objects([pyd_obj, pyd_obj1], fpth)
     assert fpth.is_file()

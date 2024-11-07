@@ -17,6 +17,7 @@ from stringcase import snakecase
 # local
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 
+
 def fix_enum_hack(output):
     # HACK: delete once issue resolved: https://github.com/koxudaxi/datamodel-code-generator/issues/2091
     def fix_enums(s):
@@ -136,6 +137,7 @@ def make_datetime_tz_aware(data, pydantic_model):
         return [d | {k: d[k].replace(tzinfo=timezone.utc) for k in keys} for d in data]
     else:
         return data
+
 
 def read_worksheet(
     worksheet: CalamineSheet,

@@ -1,5 +1,6 @@
 import os
 import pathlib
+
 import pytest
 
 FDIR_EXAMPLES = pathlib.Path(__file__).parent / "xlsxwriter-examples"
