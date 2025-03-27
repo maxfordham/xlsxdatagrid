@@ -148,8 +148,9 @@ def test_timedelta():
     )
 
 
-def test_parameter_name_change():
-    """Parameter name changing in model in latest version 0.28.5.
+def test_field_name_change():
+    """Test that the field name is not changing in the pydantic model.
+    This behaviour started happening in version 0.28.5.
     Issue: https://github.com/koxudaxi/datamodel-code-generator/issues/2364
     """
     schema = {"title": "Test", "properties": {"Fruit": {"enum": ["apple", "banana"]}}}
