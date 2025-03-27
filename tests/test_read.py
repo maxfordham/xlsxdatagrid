@@ -146,3 +146,13 @@ def test_timedelta():
     assert (
         Model.model_fields["i_duration"].annotation == ty.Optional[datetime.timedelta]
     )
+
+
+def test_field_name_change():
+    """Test that the field name is not changing in the pydantic model.
+    This behaviour started happening in version 0.28.5.
+    Issue: https://github.com/koxudaxi/datamodel-code-generator/issues/2364
+    """
+    schema = {"title": "Test", "properties": {"Fruit": {"enum": ["apple", "banana"]}}}
+    test_model = pydantic_model_from_json_schema(schema)
+    assert "Fruit_1" not in test_model.__annotations__

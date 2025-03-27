@@ -25,7 +25,7 @@ from pydantic import (
 )
 from pydantic_extra_types.color import Color
 from typing_extensions import Annotated, Self
-from xlsxwriter.utility import datetime_to_excel_datetime, xl_rowcol_to_cell
+from xlsxwriter.utility import _datetime_to_excel_datetime, xl_rowcol_to_cell
 
 from xlsxdatagrid.colours import get_color_pallette
 
@@ -117,8 +117,8 @@ XL_TABLE_PROPERTIES = (
 
 
 METADATA_FSTRING: str = (
-    "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - DatamodelUrl={datamodel_url}"
-)  # TODO: build a metadrata string from what data is present. allow additions to this string but not removals.
+    "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - DatamodelUrl={datamodel_url}"  # TODO: build a metadrata string from what data is present. allow additions to this string but not removals.
+)
 
 
 MAP_TYPES_JSON_XL = {"integer": "integer", "float": "decimal", "date": "date"}
@@ -322,10 +322,10 @@ class DataGridMetaData(BaseModel):
     )
     datamodel_path: ty.Optional[pathlib.Path] = Field(
         None, alias_choices=AliasChoices("datamodel_path", "DatamodelPath")
-    ) # TODO: add as an option
+    )  # TODO: add as an option
     datamodel_importstr: ty.Optional[ImportString] = Field(
         None, alias_choices=AliasChoices("datamodel_importstr", "DatamodelImportstr")
-    ) # TODO: add as an option. preferred when present. 
+    )  # TODO: add as an option. preferred when present.
     metadata_fstring: str = Field(
         METADATA_FSTRING
     )  # TODO: should this be fixed... or validate that the base string is included...
@@ -433,7 +433,9 @@ class XlTableWriter(BaseModel):
     format_headers: list = [None]
     tbl_range: tuple[int, int, int, int] = (0, 0, 0, 0)
     tbl_headers: ty.Optional[list[dict]] = None
-    validation_arrays: ty.Optional[dict[str, dict]] = None  # add validation to simple types: integer, float, string
+    validation_arrays: ty.Optional[dict[str, dict]] = (
+        None  # add validation to simple types: integer, float, string
+    )
     formula_arrays: dict[str, str] = {}
     formats: dict[str, dict] = {
         "datetime": DATETIME_FORMAT,
@@ -572,25 +574,25 @@ class XlTableWriter(BaseModel):
 
         for d in date_times:
             self.data[d] = [
-                datetime_to_excel_datetime(get_datetime(v), False, True)
+                _datetime_to_excel_datetime(get_datetime(v), False, True)
                 for v in self.data[d]
             ]
             self.format_arrays[d] = "datetime"
         for d in dates:
             self.data[d] = [
-                datetime_to_excel_datetime(get_datetime(v), False, True)
+                _datetime_to_excel_datetime(get_datetime(v), False, True)
                 for v in self.data[d]
             ]
             self.format_arrays[d] = "date"
         for d in times:
             self.data[d] = [
-                datetime_to_excel_datetime(get_time(v), False, True)
+                _datetime_to_excel_datetime(get_time(v), False, True)
                 for v in self.data[d]
             ]
             self.format_arrays[d] = "time"
         for d in durations:
             self.data[d] = [
-                datetime_to_excel_datetime(get_duration(v), False, True)
+                _datetime_to_excel_datetime(get_duration(v), False, True)
                 for v in self.data[d]
             ]
             self.format_arrays[d] = "duration"
