@@ -37,7 +37,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/38/6f/f5fbc992a329ee4e0f288c1fe0e2ad9485ed064cac731ed2fe47dcc38cbf/chardet-5.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/52/ed/b7f4f07de100bdb95c1756d3a4d17b90c1a3c53715c1a476f8738058e0fa/charset_normalizer-3.4.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/7e/d4/7ebdbd03970677812aac39c869717059dbb71a4cfc033ca6e5221787892c/click-8.1.8-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/84/1b/81822753798d29a2f5afa4bde7e7ab29789230e9c11426ab1620758ceef2/datamodel_code_generator-0.28.4-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/1e/af/fdb43505db1accf89c4551eacedd3bc756b7bf57b190b87c29c75fee2555/datamodel_code_generator-0.28.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/77/0c/03cc99bf3b6328604b10829de3460f2b2ad3373200c45665c38508e550c6/dirty_equals-0.9.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a9/7a/dac76d31584bb4f874ae860490c9465f5b59bd8c110f68fbbb07aba48845/frictionless-5.18.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f8/5c/e226de133afd8bb267ec27eead9ae3d784b95b39a287ed404caab39a5f50/genson-1.3.0-py3-none-any.whl
@@ -257,7 +257,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e3/ee/adda3d46d4a9120772fae6de454c8495603c37c4c3b9c60f25b1ab6401fe/black-25.1.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/38/6f/f5fbc992a329ee4e0f288c1fe0e2ad9485ed064cac731ed2fe47dcc38cbf/chardet-5.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7e/d4/7ebdbd03970677812aac39c869717059dbb71a4cfc033ca6e5221787892c/click-8.1.8-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/84/1b/81822753798d29a2f5afa4bde7e7ab29789230e9c11426ab1620758ceef2/datamodel_code_generator-0.28.4-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/1e/af/fdb43505db1accf89c4551eacedd3bc756b7bf57b190b87c29c75fee2555/datamodel_code_generator-0.28.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/77/0c/03cc99bf3b6328604b10829de3460f2b2ad3373200c45665c38508e550c6/dirty_equals-0.9.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a9/7a/dac76d31584bb4f874ae860490c9465f5b59bd8c110f68fbbb07aba48845/frictionless-5.18.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f8/5c/e226de133afd8bb267ec27eead9ae3d784b95b39a287ed404caab39a5f50/genson-1.3.0-py3-none-any.whl
@@ -340,7 +340,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/38/6f/f5fbc992a329ee4e0f288c1fe0e2ad9485ed064cac731ed2fe47dcc38cbf/chardet-5.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/3e/a2/513f6cbe752421f16d969e32f3583762bfd583848b763913ddab8d9bfd4f/charset_normalizer-3.4.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/7e/d4/7ebdbd03970677812aac39c869717059dbb71a4cfc033ca6e5221787892c/click-8.1.8-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/84/1b/81822753798d29a2f5afa4bde7e7ab29789230e9c11426ab1620758ceef2/datamodel_code_generator-0.28.4-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/1e/af/fdb43505db1accf89c4551eacedd3bc756b7bf57b190b87c29c75fee2555/datamodel_code_generator-0.28.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/77/0c/03cc99bf3b6328604b10829de3460f2b2ad3373200c45665c38508e550c6/dirty_equals-0.9.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a9/7a/dac76d31584bb4f874ae860490c9465f5b59bd8c110f68fbbb07aba48845/frictionless-5.18.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f8/5c/e226de133afd8bb267ec27eead9ae3d784b95b39a287ed404caab39a5f50/genson-1.3.0-py3-none-any.whl
@@ -396,8 +396,6 @@ packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
   sha256: fe51de6107f9edc7aa4f786a70f4a883943bc9d39b3bb7307c04c41410990726
   md5: d7c89558ba9fa0495403155b64376d81
-  arch: x86_64
-  platform: linux
   license: None
   purls: []
   size: 2562
@@ -411,8 +409,6 @@ packages:
   - libgomp >=7.5.0
   constrains:
   - openmp_impl 9999
-  arch: x86_64
-  platform: linux
   license: BSD-3-Clause
   license_family: BSD
   purls: []
@@ -479,8 +475,6 @@ packages:
   - libgcc >=13
   - python >=3.13.0rc1,<3.14.0a0
   - python_abi 3.13.* *_cp313
-  arch: x86_64
-  platform: linux
   license: MIT
   license_family: MIT
   purls:
@@ -679,8 +673,6 @@ packages:
   - python_abi 3.13.* *_cp313
   constrains:
   - libbrotlicommon 1.1.0 hb9d3cd8_2
-  arch: x86_64
-  platform: linux
   license: MIT
   license_family: MIT
   purls:
@@ -693,8 +685,6 @@ packages:
   depends:
   - __glibc >=2.17,<3.0.a0
   - libgcc-ng >=12
-  arch: x86_64
-  platform: linux
   license: bzip2-1.0.6
   license_family: BSD
   purls: []
@@ -703,8 +693,6 @@ packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/ca-certificates-2025.1.31-hbcca054_0.conda
   sha256: bf832198976d559ab44d6cdb315642655547e26d826e34da67cbee6624cda189
   md5: 19f3a56f68d2fd06c516076bff482c52
-  arch: x86_64
-  platform: linux
   license: ISC
   purls: []
   size: 158144
@@ -756,8 +744,6 @@ packages:
   - pycparser
   - python >=3.13.0rc1,<3.14.0a0
   - python_abi 3.13.* *_cp313
-  arch: x86_64
-  platform: linux
   license: MIT
   license_family: MIT
   purls:
@@ -824,17 +810,15 @@ packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/dart-sass-1.58.3-ha770c72_1.conda
   sha256: a94f8024ac8a09cbf265c62d2bd57e709802868ef656c6cafe5864ed20bf94af
   md5: d54982a58cd9be3d00a7efe76ba6f60c
-  arch: x86_64
-  platform: linux
   license: MIT
   license_family: MIT
   purls: []
   size: 2961769
   timestamp: 1683598364427
-- pypi: https://files.pythonhosted.org/packages/84/1b/81822753798d29a2f5afa4bde7e7ab29789230e9c11426ab1620758ceef2/datamodel_code_generator-0.28.4-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/1e/af/fdb43505db1accf89c4551eacedd3bc756b7bf57b190b87c29c75fee2555/datamodel_code_generator-0.28.5-py3-none-any.whl
   name: datamodel-code-generator
-  version: 0.28.4
-  sha256: 16a58933e7c2de692c88e0061ba9a7e23009fe298a726cbba027574fff25c9ba
+  version: 0.28.5
+  sha256: f899c1da5af04b5d5b6e3edbd718c1bf3a00fc4b2fe8210cef609d93a9983e9e
   requires_dist:
   - argcomplete>=2.10.1,<4
   - black>=19.10b0
@@ -868,8 +852,6 @@ packages:
   - libstdcxx >=13
   - python >=3.13,<3.14.0a0
   - python_abi 3.13.* *_cp313
-  arch: x86_64
-  platform: linux
   license: MIT
   license_family: MIT
   purls:
@@ -906,8 +888,6 @@ packages:
   - libgcc >=13
   constrains:
   - __glibc >=2.17
-  arch: x86_64
-  platform: linux
   license: MIT
   license_family: MIT
   purls: []
@@ -921,8 +901,6 @@ packages:
   - deno >=1.24.2
   constrains:
   - __glibc >=2.17
-  arch: x86_64
-  platform: linux
   license: MIT
   license_family: MIT
   purls: []
@@ -939,8 +917,6 @@ packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/esbuild-0.25.1-ha770c72_0.conda
   sha256: a230c4c924f47d62d58a9613c1ab6844dfe0ecabeb76e76e01f5eabd757c86e1
   md5: c8473b1e339e482ce94acbddbe53abff
-  arch: x86_64
-  platform: linux
   license: MIT
   license_family: MIT
   purls: []
@@ -1369,8 +1345,6 @@ packages:
   depends:
   - python >=3.13.0rc1,<3.14.0a0
   - python_abi 3.13.* *_cp313
-  arch: x86_64
-  platform: linux
   license: BSD-3-Clause
   license_family: BSD
   purls:
@@ -1684,8 +1658,6 @@ packages:
   md5: 30186d27e2c9fa62b45fb1476b7200e3
   depends:
   - libgcc-ng >=10.3.0
-  arch: x86_64
-  platform: linux
   license: LGPL-2.1-or-later
   purls: []
   size: 117831
@@ -1700,8 +1672,6 @@ packages:
   - libgcc-ng >=12
   - libstdcxx-ng >=12
   - openssl >=3.3.1,<4.0a0
-  arch: x86_64
-  platform: linux
   license: MIT
   license_family: MIT
   purls: []
@@ -1714,8 +1684,6 @@ packages:
   - __glibc >=2.17,<3.0.a0
   constrains:
   - binutils_impl_linux-64 2.43
-  arch: x86_64
-  platform: linux
   license: GPL-3.0-only
   license_family: GPL
   purls: []
@@ -1729,8 +1697,6 @@ packages:
   - __glibc >=2.17,<3.0.a0
   - libgcc >=13
   - ncurses >=6.5,<7.0a0
-  arch: x86_64
-  platform: linux
   license: BSD-2-Clause
   license_family: BSD
   purls: []
@@ -1744,8 +1710,6 @@ packages:
   - libgcc >=13
   constrains:
   - expat 2.6.4.*
-  arch: x86_64
-  platform: linux
   license: MIT
   license_family: MIT
   purls: []
@@ -1757,8 +1721,6 @@ packages:
   depends:
   - __glibc >=2.17,<3.0.a0
   - libgcc >=13
-  arch: x86_64
-  platform: linux
   license: MIT
   license_family: MIT
   purls: []
@@ -1773,8 +1735,6 @@ packages:
   constrains:
   - libgomp 14.2.0 h767d61c_2
   - libgcc-ng ==14.2.0=*_2
-  arch: x86_64
-  platform: linux
   license: GPL-3.0-only WITH GCC-exception-3.1
   license_family: GPL
   purls: []
@@ -1785,8 +1745,6 @@ packages:
   md5: a2222a6ada71fb478682efe483ce0f92
   depends:
   - libgcc 14.2.0 h767d61c_2
-  arch: x86_64
-  platform: linux
   license: GPL-3.0-only WITH GCC-exception-3.1
   license_family: GPL
   purls: []
@@ -1797,8 +1755,6 @@ packages:
   md5: 06d02030237f4d5b3d9a7e7d348fe3c6
   depends:
   - __glibc >=2.17,<3.0.a0
-  arch: x86_64
-  platform: linux
   license: GPL-3.0-only WITH GCC-exception-3.1
   license_family: GPL
   purls: []
@@ -1810,8 +1766,6 @@ packages:
   depends:
   - __glibc >=2.17,<3.0.a0
   - libgcc >=13
-  arch: x86_64
-  platform: linux
   license: 0BSD
   purls: []
   size: 111357
@@ -1822,8 +1776,6 @@ packages:
   depends:
   - __glibc >=2.17,<3.0.a0
   - libgcc-ng >=12
-  arch: x86_64
-  platform: linux
   license: BSD-2-Clause
   license_family: BSD
   purls: []
@@ -1834,8 +1786,6 @@ packages:
   md5: 30fd6e37fe21f86f4bd26d6ee73eeec7
   depends:
   - libgcc-ng >=12
-  arch: x86_64
-  platform: linux
   license: LGPL-2.1-only
   license_family: GPL
   purls: []
@@ -1846,8 +1796,6 @@ packages:
   md5: a587892d3c13b6621a6091be690dbca2
   depends:
   - libgcc-ng >=12
-  arch: x86_64
-  platform: linux
   license: ISC
   purls: []
   size: 205978
@@ -1859,8 +1807,6 @@ packages:
   - __glibc >=2.17,<3.0.a0
   - libgcc >=13
   - libzlib >=1.3.1,<2.0a0
-  arch: x86_64
-  platform: linux
   license: Unlicense
   purls: []
   size: 918664
@@ -1871,8 +1817,6 @@ packages:
   depends:
   - __glibc >=2.17,<3.0.a0
   - libgcc 14.2.0 h767d61c_2
-  arch: x86_64
-  platform: linux
   license: GPL-3.0-only WITH GCC-exception-3.1
   license_family: GPL
   purls: []
@@ -1883,8 +1827,6 @@ packages:
   md5: c75da67f045c2627f59e6fcb5f4e3a9b
   depends:
   - libstdcxx 14.2.0 h8f9b012_2
-  arch: x86_64
-  platform: linux
   license: GPL-3.0-only WITH GCC-exception-3.1
   license_family: GPL
   purls: []
@@ -1895,8 +1837,6 @@ packages:
   md5: 40b61aab5c7ba9ff276c41cfffe6b80b
   depends:
   - libgcc-ng >=12
-  arch: x86_64
-  platform: linux
   license: BSD-3-Clause
   license_family: BSD
   purls: []
@@ -1907,8 +1847,6 @@ packages:
   md5: 5aa797f8787fe7a17d1b0821485b5adc
   depends:
   - libgcc-ng >=12
-  arch: x86_64
-  platform: linux
   license: LGPL-2.1-or-later
   purls: []
   size: 100393
@@ -1921,8 +1859,6 @@ packages:
   - libgcc >=13
   constrains:
   - zlib 1.3.1 *_2
-  arch: x86_64
-  platform: linux
   license: Zlib
   license_family: Other
   purls: []
@@ -1988,8 +1924,6 @@ packages:
   - python_abi 3.13.* *_cp313
   constrains:
   - jinja2 >=3.0.0
-  arch: x86_64
-  platform: linux
   license: BSD-3-Clause
   license_family: BSD
   purls:
@@ -2097,8 +2031,6 @@ packages:
   depends:
   - __glibc >=2.17,<3.0.a0
   - libgcc >=13
-  arch: x86_64
-  platform: linux
   license: X11 AND BSD-3-Clause
   purls: []
   size: 891641
@@ -2160,8 +2092,6 @@ packages:
   - __glibc >=2.17,<3.0.a0
   - ca-certificates
   - libgcc >=13
-  arch: x86_64
-  platform: linux
   license: Apache-2.0
   license_family: Apache
   purls: []
@@ -2385,8 +2315,6 @@ packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/pandoc-3.4-ha770c72_0.conda
   sha256: 8b6c7ddd9422cc6b7ddc10aa8d184f07c1534429e106c441f679f21e95db31c8
   md5: 61c94057aaa5ae6145137ce1fddb2c04
-  arch: x86_64
-  platform: linux
   license: GPL-2.0-or-later
   license_family: GPL
   purls: []
@@ -2558,8 +2486,6 @@ packages:
   - libgcc >=13
   - python >=3.13,<3.14.0a0
   - python_abi 3.13.* *_cp313
-  arch: x86_64
-  platform: linux
   license: BSD-3-Clause
   license_family: BSD
   purls:
@@ -2742,8 +2668,6 @@ packages:
   - tzdata
   constrains:
   - python_abi 3.12.* *_cp312
-  arch: x86_64
-  platform: linux
   license: Python-2.0
   purls: []
   size: 31670716
@@ -2770,8 +2694,6 @@ packages:
   - readline >=8.2,<9.0a0
   - tk >=8.6.13,<8.7.0a0
   - tzdata
-  arch: x86_64
-  platform: linux
   license: Python-2.0
   purls: []
   size: 33233150
@@ -2846,8 +2768,6 @@ packages:
   md5: 0424ae29b104430108f5218a66db7260
   constrains:
   - python 3.12.* *_cpython
-  arch: x86_64
-  platform: linux
   license: BSD-3-Clause
   license_family: BSD
   purls: []
@@ -2859,8 +2779,6 @@ packages:
   md5: 381bbd2a92c863f640a55b6ff3c35161
   constrains:
   - python 3.13.* *_cp313
-  arch: x86_64
-  platform: linux
   license: BSD-3-Clause
   license_family: BSD
   purls: []
@@ -2899,8 +2817,6 @@ packages:
   - python >=3.13,<3.14.0a0
   - python_abi 3.13.* *_cp313
   - yaml >=0.2.5,<0.3.0a0
-  arch: x86_64
-  platform: linux
   license: MIT
   license_family: MIT
   purls:
@@ -2918,8 +2834,6 @@ packages:
   - python >=3.13,<3.14.0a0
   - python_abi 3.13.* *_cp313
   - zeromq >=4.3.5,<4.4.0a0
-  arch: x86_64
-  platform: linux
   license: BSD-3-Clause
   license_family: BSD
   purls:
@@ -2936,8 +2850,6 @@ packages:
   - esbuild
   - pandoc 3.4
   - typst 0.11.0
-  arch: x86_64
-  platform: linux
   license: MIT
   license_family: MIT
   purls: []
@@ -2949,8 +2861,6 @@ packages:
   depends:
   - libgcc >=13
   - ncurses >=6.5,<7.0a0
-  arch: x86_64
-  platform: linux
   license: GPL-3.0-only
   license_family: GPL
   purls: []
@@ -3069,8 +2979,6 @@ packages:
   - python_abi 3.13.* *_cp313
   constrains:
   - __glibc >=2.17
-  arch: x86_64
-  platform: linux
   license: MIT
   purls:
   - pkg:pypi/rpds-py?source=hash-mapping
@@ -3085,8 +2993,6 @@ packages:
   - libstdcxx >=13
   - python >=3.12,<3.13.0a0
   - python_abi 3.12.* *_cp312
-  arch: x86_64
-  platform: linux
   license: MIT
   license_family: MIT
   purls:
@@ -3225,8 +3131,6 @@ packages:
   depends:
   - libgcc-ng >=12
   - libzlib >=1.2.13,<2.0.0a0
-  arch: x86_64
-  platform: linux
   license: TCL
   license_family: BSD
   purls: []
@@ -3251,8 +3155,6 @@ packages:
   - libgcc >=13
   - python >=3.13,<3.14.0a0
   - python_abi 3.13.* *_cp313
-  arch: x86_64
-  platform: linux
   license: Apache-2.0
   license_family: Apache
   purls:
@@ -3334,8 +3236,6 @@ packages:
   depends:
   - libgcc-ng >=12
   - openssl >=3.2.1,<4.0a0
-  arch: x86_64
-  platform: linux
   license: Apache-2.0
   license_family: Apache
   purls: []
@@ -3454,10 +3354,10 @@ packages:
   timestamp: 1733128654300
 - pypi: .
   name: xlsxdatagrid
-  version: 0.1.1.dev0+g403b242.d20250327
-  sha256: fb6d7d55bf6986a92883484263f02fa0ad538e5d272a4bae2080a2e029800143
+  version: 0.1.2.dev0+g9d1b3b2.d20250403
+  sha256: c8fd1597ce7db0189ff1fc4df1b978f86627754b375ada67c6684594bb0b8ad7
   requires_dist:
-  - datamodel-code-generator==0.28.4
+  - datamodel-code-generator>=0.28.5
   - dirty-equals
   - frictionless
   - frictionless[pandas]
@@ -3480,8 +3380,6 @@ packages:
   md5: 4cb3ad778ec2d5a7acbdf254eb1c42ae
   depends:
   - libgcc-ng >=9.4.0
-  arch: x86_64
-  platform: linux
   license: MIT
   license_family: MIT
   purls: []
@@ -3496,8 +3394,6 @@ packages:
   - libgcc >=13
   - libsodium >=1.0.20,<1.0.21.0a0
   - libstdcxx >=13
-  arch: x86_64
-  platform: linux
   license: MPL-2.0
   license_family: MOZILLA
   purls: []
@@ -3523,8 +3419,6 @@ packages:
   - libgcc >=13
   - python >=3.13,<3.14.0a0
   - python_abi 3.13.* *_cp313
-  arch: x86_64
-  platform: linux
   license: BSD-3-Clause
   license_family: BSD
   purls:
