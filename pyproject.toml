@@ -29,7 +29,7 @@ dependencies = [
   "palettable",
   "pydantic_extra_types",
   "python-calamine",
-  "datamodel-code-generator==0.28.4", # TODO: Pinned due to this issue: https://github.com/koxudaxi/datamodel-code-generator/issues/2364 
+  "datamodel-code-generator>=0.28.5",
   "stringcase",
   "frictionless",
   "frictionless[pandas]",
