@@ -3230,8 +3230,8 @@ packages:
   timestamp: 1744291155057
 - pypi: ./
   name: xlsxdatagrid
-  version: 0.1.1.dev3+g39d5e0d59.d20250915
-  sha256: c82fbabe4c057c3008851704fe58e8df612e0c7783fc0bb45f7bc9c069b3aa51
+  version: 0.1.3.dev4+gc783c0120.d20250915
+  sha256: 75113d1f04e8c680dff05c66fc529816e84e8eed2133316e15471971dcc05f15
   requires_dist:
   - datamodel-code-generator>=0.28.5
   - dirty-equals

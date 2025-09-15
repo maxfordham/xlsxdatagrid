@@ -88,5 +88,6 @@ quarto = "*"
 # jupyterlab-quarto = "*"
 
 [tool.pixi.feature.docs.tasks]
+docs = {cmd="quarto render .", cwd="docs"}
 write-docs = "jupyter lab"
 # ----------
