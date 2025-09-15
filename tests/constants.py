@@ -17,3 +17,4 @@ PATH_FROM_JSON_EMPTY, PATH_FROM_JSON_EMPTY_TRANSPOSED = (
     FDIR / "from-json.xlsx",
     FDIR / "from-json-T.xlsx",
 )
+PATH_WRITE_GRID = FDIR / "write-grid.xlsx"

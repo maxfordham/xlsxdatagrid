@@ -314,7 +314,7 @@ def test_schema_and_data_write_table(is_transposed):
 
     fpth.unlink(missing_ok=True)
     gridschema = convert_records_to_datagrid_schema(schema)
-    DataGridSchema(**gridschema)
+
     xl_tbl = XlTableWriter(gridschema=gridschema, data=data)
     workbook = xw.Workbook(str(fpth))
     write_table(workbook, xl_tbl)
@@ -414,6 +414,27 @@ def test_coerce_schema():
     assert coerce_schema(TestArrayTransposed) == IsInstance(DataGridSchema)
 
     assert coerce_schema(TestArray) == IsInstance(DataGridSchema)
+
+def test_coerce_data():
+    from xlsxdatagrid.xlsxdatagrid import DataGridData, coerce_data
+    class Row(BaseModel):
+        x: int
+        y: str
+    
+    class Grid(RootModel):
+        root: list[Row]
+
+    data1 = {"x": [1,2,3], "y": list("abc")}
+    data2 = [{"x": x, "y": y} for x, y in zip(data1["x"], data1["y"])]
+    data3 = pd.DataFrame(data2)
+    data4 = Grid.model_validate(data2)
+    data5 = DataGridData(root=data1)
+
+    for x in [data1, data2, data3, data4, data5]:
+        check = coerce_data(x)
+        assert isinstance(check, DataGridData)
+        assert check == data5
+    print("done")
 
 
 def test_datapackage():
@@ -542,3 +563,48 @@ def test_from_json_empty_data(is_transposed):
     data = [dict(a=2, b="b", c=None)]
     xdg.from_json(data, schema=TestGrid, fpth=fpth, is_transposed=is_transposed)
     assert fpth.is_file()
+
+
+
+
+
+def test_get_xlgrid():
+    class TestItem(BaseModel):
+        a: ty.Optional[int]
+        b: str
+        c: ty.Optional[str]
+
+    class TestGrid(RootModel):
+        root: list[TestItem]
+
+    data = [dict(a=2, b="b", c=None)]
+    from xlsxdatagrid.xlsxdatagrid import get_xlgrid, coerce_schema, coerce_data, XlGrid
+    
+    gridschema = coerce_schema(TestGrid)
+    griddata = coerce_data(data)
+    xlgrid = get_xlgrid(gridschema, griddata)
+    
+    assert isinstance(xlgrid, XlGrid)
+    print("done")
+
+def test_write_grid():
+    class TestItem(BaseModel):
+        a: ty.Optional[int]
+        b: str
+        c: ty.Optional[str]
+
+    class TestGrid(RootModel):
+        root: list[TestItem]
+
+    data = [dict(a=2, b="b", c=None)] * 3
+    from xlsxdatagrid.xlsxdatagrid import get_xlgrid, coerce_schema, coerce_data, XlGrid, write_grid
+    gridschema = coerce_schema(TestGrid)
+    griddata = coerce_data(data)
+    xlgrid = get_xlgrid(gridschema, griddata)
+    c.PATH_WRITE_GRID.unlink(missing_ok=True)
+    workbook = xw.Workbook(str(c.PATH_WRITE_GRID)) 
+    worksheet = write_grid(workbook, xlgrid=xlgrid, gridschema=gridschema, data=griddata)
+    
+    assert isinstance(worksheet, xw.worksheet.Worksheet)
+    workbook.close()
+    assert c.PATH_WRITE_GRID.is_file()
