@@ -64,8 +64,8 @@ xlsxdatagrid = { path = ".", editable = true }
 
 
 [tool.pixi.environments]
-test = ["test"]
-docs = ["docs"]
+test = { features = ["test"] }
+docs = { features = ["docs"] }
 
 # test deps and commands 
 [tool.pixi.feature.test.dependencies]
@@ -73,7 +73,7 @@ pytest = "*"
 ruff = ">=0.6.8,<0.7"
 
 [tool.pixi.feature.test.tasks]
-test = "pytest"
+tests = "pytest"
 check = "ruff check"
 fix = "ruff check --fix --select I"
 format = "ruff format"
@@ -88,5 +88,6 @@ quarto = "*"
 # jupyterlab-quarto = "*"
 
 [tool.pixi.feature.docs.tasks]
+docs = {cmd="quarto render .", cwd="docs"}
 write-docs = "jupyter lab"
 # ----------

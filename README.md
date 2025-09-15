@@ -17,16 +17,16 @@
 ## Installation
 
 ```console
-pip install xlsxdatagrid
+pip install https://github.com/maxfordham/xlsxdatagrid@main # TODO: release on pypi
 ```
 
 ## Develop
 
+[Install `pixi`](https://pixi.sh/latest/)
+
 ```console
-mamba create -n xlsxdatagrid-dev python
-mamba activate xlsxdatagrid-dev
-pip install -e .
-pytest
+pixi run list #  list tasks
+pixi run test #  run tests
 ```
 
 ## License
