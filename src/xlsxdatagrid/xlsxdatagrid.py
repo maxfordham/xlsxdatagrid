@@ -25,7 +25,7 @@ from pydantic import (
 )
 from pydantic_extra_types.color import Color
 from typing_extensions import Annotated, Self
-from xlsxwriter.utility import datetime_to_excel_datetime, xl_rowcol_to_cell
+from xlsxwriter.utility import _datetime_to_excel_datetime, xl_rowcol_to_cell
 
 from xlsxdatagrid.colours import get_color_pallette
 
@@ -116,9 +116,10 @@ XL_TABLE_PROPERTIES = (
 # ^ NOT IN USE. COULD USE FOR VALIDATION... ----------------------
 
 
-METADATA_FSTRING: str = "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - DatamodelUrl={datamodel_url}"  
-# TODO: ^ build a metadrata string from what data is present. allow additions to this string but not removals.
-
+METADATA_FSTRING: str = (
+    "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - DatamodelUrl={datamodel_url}"  
+)
+# ^ TODO: build a metadrata string from what data is present. allow additions to this string but not removals.
 
 MAP_TYPES_JSON_XL = {"integer": "integer", "float": "decimal", "date": "date"}
 
@@ -578,25 +579,25 @@ class XlTableWriter(XlGrid):
 
         for d in date_times:
             self.data[d] = [
-                datetime_to_excel_datetime(get_datetime(v), False, True)
+                _datetime_to_excel_datetime(get_datetime(v), False, True)
                 for v in self.data[d]
             ]
             self.format_arrays[d] = "datetime"
         for d in dates:
             self.data[d] = [
-                datetime_to_excel_datetime(get_datetime(v), False, True)
+                _datetime_to_excel_datetime(get_datetime(v), False, True)
                 for v in self.data[d]
             ]
             self.format_arrays[d] = "date"
         for d in times:
             self.data[d] = [
-                datetime_to_excel_datetime(get_time(v), False, True)
+                _datetime_to_excel_datetime(get_time(v), False, True)
                 for v in self.data[d]
             ]
             self.format_arrays[d] = "time"
         for d in durations:
             self.data[d] = [
-                datetime_to_excel_datetime(get_duration(v), False, True)
+                _datetime_to_excel_datetime(get_duration(v), False, True)
                 for v in self.data[d]
             ]
             self.format_arrays[d] = "duration"
@@ -754,25 +755,25 @@ def get_xlgrid(gridschema: DataGridSchema, data: DataGridData) -> XlTableWriter:
 
     for d in date_times:
         data[d] = [
-            datetime_to_excel_datetime(get_datetime(v), False, True)
+            _datetime_to_excel_datetime(get_datetime(v), False, True)
             for v in data[d]
         ]
         format_arrays[d] = "datetime"
     for d in dates:
         data[d] = [
-            datetime_to_excel_datetime(get_datetime(v), False, True)
+            _datetime_to_excel_datetime(get_datetime(v), False, True)
             for v in data[d]
         ]
         format_arrays[d] = "date"
     for d in times:
         data[d] = [
-            datetime_to_excel_datetime(get_time(v), False, True)
+            _datetime_to_excel_datetime(get_time(v), False, True)
             for v in data[d]
         ]
         format_arrays[d] = "time"
     for d in durations:
         data[d] = [
-            datetime_to_excel_datetime(get_duration(v), False, True)
+            _datetime_to_excel_datetime(get_duration(v), False, True)
             for v in data[d]
         ]
         format_arrays[d] = "duration"

@@ -18,34 +18,6 @@ from stringcase import snakecase
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 
 
-def fix_enum_hack(output):
-    # HACK: delete once issue resolved: https://github.com/koxudaxi/datamodel-code-generator/issues/2091
-    def fix_enums(s):
-        if "(Enum):" in s:
-            li_enums.append(s.replace("class ", "").replace("(Enum):", ""))
-            s = s.replace("(Enum):", "Enum(Enum):")
-        return s
-
-    def fix_enum_defs(s):
-        for k, v in di_replace.items():
-            if k in s:
-                return s.replace(k, v)
-        return s
-
-    li_enums = []
-
-    li = output.read_text().split("\n")
-    li = [fix_enums(s) for s in li]
-    di_replace = {}
-    for x in li_enums:
-        di_replace[f": {x}"] = f": {x}Enum"
-        di_replace[f": Optional[{x}]"] = f": Optional[{x}Enum]"
-    if len(di_replace) > 0:
-        li = [fix_enum_defs(s) for s in li]
-
-    output.write_text("\n".join(li))
-
-
 def pydantic_model_from_json_schema(json_schema: str) -> ty.Type[BaseModel]:
     load = json_schema["title"].replace(" ", "") if "title" in json_schema else "Model"
     # TODO: refactor this when title vs name vs code has been sorted out...
@@ -63,9 +35,6 @@ def pydantic_model_from_json_schema(json_schema: str) -> ty.Type[BaseModel]:
             output_model_type=DataModelType.PydanticV2BaseModel,
             capitalise_enum_members=True,
         )
-        fix_enum_hack(
-            output
-        )  # TODO: remove this once resolved: https://github.com/koxudaxi/datamodel-code-generator/issues/2091
         spec = importlib.util.spec_from_file_location(module_name, output)
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
@@ -158,7 +127,9 @@ def read_worksheet(
                 return pydantic_model.model_validate(data), metadata
             else:
                 return (
-                    pydantic_model.model_validate(data).model_dump(mode="json"),
+                    pydantic_model.model_validate(data).model_dump(
+                        mode="json", by_alias=True
+                    ),
                     metadata,
                 )
         else:

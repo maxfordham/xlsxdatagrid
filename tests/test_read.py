@@ -146,3 +146,28 @@ def test_timedelta():
     assert (
         Model.model_fields["i_duration"].annotation == ty.Optional[datetime.timedelta]
     )
+
+
+def test_field_name_change():
+    """Test that the field name changes in the pydantic model if enumeration
+    given same name as property.
+    This behaviour introduced in version 0.28.5.
+    Issue discussing this behaviour: https://github.com/koxudaxi/datamodel-code-generator/issues/2364
+    """
+    schema = {
+        "type": "object",
+        "properties": {"Fruit": {"$ref": "#/definitions/Fruit"}},
+        "definitions": {
+            "Fruit": {
+                "enum": ["apple", "banana"],
+                "name": "Fruit",
+                "title": "Fruit",
+                "type": "string",
+            }
+        },
+    }
+    test_model = pydantic_model_from_json_schema(schema)
+    assert "Fruit_1" in test_model.__annotations__
+    assert "Fruit" in test_model.model_fields["Fruit_1"].alias
+    validated_model = test_model.model_validate({"Fruit": "apple"})
+    assert validated_model.model_dump(by_alias=True, mode="json") == {"Fruit": "apple"}

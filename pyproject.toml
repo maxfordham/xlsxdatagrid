@@ -10,9 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
 keywords = []
-authors = [
-  { name = "jgunstone", email = "j.gunstone@maxfordham.com" },
-]
+authors = [{ name = "jgunstone", email = "j.gunstone@maxfordham.com" }]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python",
@@ -24,7 +22,19 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = ["xlsxwriter", "pydantic>2", "jsonref", "palettable", "pydantic_extra_types", "python-calamine", "datamodel-code-generator>=0.26.1", "stringcase", "frictionless", "frictionless[pandas]", "dirty_equals"]
+dependencies = [
+  "xlsxwriter>=3.2.1",
+  "pydantic>2",
+  "jsonref",
+  "palettable",
+  "pydantic_extra_types",
+  "python-calamine",
+  "datamodel-code-generator>=0.28.5",
+  "stringcase",
+  "frictionless",
+  "frictionless[pandas]",
+  "dirty_equals",
+]
 
 [project.urls]
 Documentation = "https://github.com/maxfordham/xlsxdatagrid#readme"
@@ -80,5 +90,3 @@ quarto = "*"
 [tool.pixi.feature.docs.tasks]
 write-docs = "jupyter lab"
 # ----------
-
-
