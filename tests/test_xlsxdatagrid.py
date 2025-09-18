@@ -20,8 +20,8 @@ from pydantic import (
     StringConstraints,
     computed_field,
 )
-from typing_extensions import Annotated
 
+from typing_extensions import Annotated
 import xlsxdatagrid.xlsxdatagrid as xdg
 from xlsxdatagrid.xlsxdatagrid import (
     DataGridSchema,
