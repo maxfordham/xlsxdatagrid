@@ -27,6 +27,7 @@ jobs:
             pixi-version: v0.42.1
             cache: true
             cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+      - run: pixi run tests
       - run: pixi run docs
 
       - name: add .nojekyll file
