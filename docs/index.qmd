@@ -2,3 +2,8 @@
 title: xlsxdatagrid
 ---
 
+`xlsxdatagrid` is a python package for writing well-formatted and type-safe tables to excel. 
+It uses [xlsxwriter](https://xlsxwriter.readthedocs.io/) to write to excel, and ideally tables are defined using [pydantic](https://docs.pydantic.dev/latest/), ([see example](https://github.com/maxfordham/xlsxdatagrid/blob/main/src/xlsxdatagrid/demo_schemas/dtypes.py)).
+
+Check out the examples in the left hand sidebar to better understand the output.
+
