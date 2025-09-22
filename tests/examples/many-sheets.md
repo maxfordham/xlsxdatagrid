@@ -9,31 +9,15 @@ title: "many sheets"
 
 ```py
 import pathlib
-import typing as ty
-from datetime import date, datetime, time, timedelta
-from enum import StrEnum
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    NaiveDatetime,
-    # NaiveDate,
-    RootModel,
-    StringConstraints,
-    computed_field,
-)
-from typing_extensions import Annotated
 from xlsxdatagrid.xlsxdatagrid import (
     convert_dict_arrays_to_list_records,
-    from_pydantic_objects
+    from_pydantic_objects,
 )
 
 from xlsxdatagrid.demo_schemas.dtypes import (
-    MyColor,
-    DataTypes,
     DataTypesBasicFields,
     DataTypesArray,
-    DataTypesArrayTransposed
+    DataTypesArrayTransposed,
 )
 
 ARRAY_DATA = {
@@ -55,11 +39,12 @@ ARRAY_DATA = {
     "b_calcfloat": [1.5, 5.0, 10.5],
 }
 
-ARRAY_DATA1 = {k: v * 2 for k, v in ARRAY_DATA.items() if k in DataTypesBasicFields.model_fields}
+ARRAY_DATA1 = {
+    k: v * 2 for k, v in ARRAY_DATA.items() if k in DataTypesBasicFields.model_fields
+}
 
 pyd_obj = DataTypesArrayTransposed(convert_dict_arrays_to_list_records(ARRAY_DATA))
 pyd_obj1 = DataTypesArray(convert_dict_arrays_to_list_records(ARRAY_DATA1))
-import xlsxdatagrid as xdg
 fpth = pathlib.Path("tests/xl/test-many-sheets.xlsx")
 from_pydantic_objects([pyd_obj, pyd_obj1], fpth)
 print(fpth, fpth.is_file())
