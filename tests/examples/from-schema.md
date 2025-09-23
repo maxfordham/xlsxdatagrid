@@ -19,6 +19,7 @@ t1, t2, t3 = (
 )
 t_array = DataTypesArray([t1, t2, t3])
 fpth = pathlib.Path("tests/xl/test.xlsx")
+fpth.parent.mkdir(parents=True, exist_ok=True)
 xdg.from_pydantic_object(t_array, fpth)
 print(fpth, fpth.is_file())
 #> tests/xl/test.xlsx True

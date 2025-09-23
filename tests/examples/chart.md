@@ -22,6 +22,7 @@ def x_squared():
 
 
 fpth = pathlib.Path("tests/xl/chart.xlsx")
+fpth.parent.mkdir(parents=True, exist_ok=True)
 df = x_squared()
 
 workbook, xl_tbl, worksheet = wb_from_dataframe(df, fpth)

@@ -46,6 +46,7 @@ ARRAY_DATA1 = {
 pyd_obj = DataTypesArrayTransposed(convert_dict_arrays_to_list_records(ARRAY_DATA))
 pyd_obj1 = DataTypesArray(convert_dict_arrays_to_list_records(ARRAY_DATA1))
 fpth = pathlib.Path("tests/xl/test-many-sheets.xlsx")
+fpth.parent.mkdir(parents=True, exist_ok=True)
 from_pydantic_objects([pyd_obj, pyd_obj1], fpth)
 print(fpth, fpth.is_file())
 #> tests/xl/test-many-sheets.xlsx True

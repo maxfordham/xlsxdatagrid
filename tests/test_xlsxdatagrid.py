@@ -273,6 +273,10 @@ def get_pydantic_test_inputs(is_transposed=False):
         return c.PATH_XL, get_test_array(is_transposed)
 
 
+@pytest.fixture(autouse=True)
+def ensure_xl_dir():
+    c.FDIR.mkdir(parents=True, exist_ok=True)
+
 @pytest.fixture(params=[True, False])
 def write_table_test(request):
     fpth, pyd_obj = get_pydantic_test_inputs(is_transposed=request.param)
