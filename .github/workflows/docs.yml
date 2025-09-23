@@ -1,0 +1,41 @@
+# TODO: setup auto-update pixi.lock https://pixi.sh/latest/advanced/updates_github_actions/#how-to-use
+# TODO: use quarto GH action (https://github.com/quarto-dev/quarto-actions/tree/main/publish)
+
+name: deploy-book
+
+on:
+    push:
+      branches: [main]
+    pull_request:
+      branches: [main]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: linux-64
+
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.8.0
+        with:
+            manifest-path: pyproject.toml
+            pixi-version: v0.42.1
+            cache: true
+            cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+      - run: pixi run docs
+
+      - name: add .nojekyll file
+        working-directory: ./docs/_site
+        run: touch .nojekyll
+
+      # Push the book's HTML to github-pages
+      - name: GitHub Pages action
+        uses: peaceiris/actions-gh-pages@v3.6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/_site

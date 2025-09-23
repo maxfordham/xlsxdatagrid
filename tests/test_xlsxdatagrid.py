@@ -20,8 +20,8 @@ from pydantic import (
     StringConstraints,
     computed_field,
 )
-from typing_extensions import Annotated
 
+from typing_extensions import Annotated
 import xlsxdatagrid.xlsxdatagrid as xdg
 from xlsxdatagrid.xlsxdatagrid import (
     DataGridSchema,
@@ -272,6 +272,10 @@ def get_pydantic_test_inputs(is_transposed=False):
     else:
         return c.PATH_XL, get_test_array(is_transposed)
 
+
+@pytest.fixture(autouse=True)
+def ensure_xl_dir():
+    c.FDIR.mkdir(parents=True, exist_ok=True)
 
 @pytest.fixture(params=[True, False])
 def write_table_test(request):

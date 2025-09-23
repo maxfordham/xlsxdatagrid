@@ -1,13 +1,24 @@
 project:
+  pre-render: get_examples.py
   type: website
 
 website:
-  title: "xlsxdatagrid"
   navbar:
     left:
       - href: index.qmd
-        text: Home
-      - about.qmd
+
+  sidebar:
+    style: "docked"
+    search: true
+    contents:
+      - text: "From Schema"
+        href: examples/from-schema.md
+      - text: "From Schema Transposed"
+        href: examples/from-schema-t.md
+      - text: "Many Sheets"
+        href: examples/many-sheets.md
+      - text: "Chart"
+        href: examples/chart.md
 
 format:
   html:

@@ -72,11 +72,16 @@ docs = { features = ["docs"] }
 pytest = "*"
 ruff = ">=0.6.8,<0.7"
 
+[tool.pixi.feature.test.pypi-dependencies]
+pytest-examples = "*"
+
 [tool.pixi.feature.test.tasks]
 tests = "pytest"
 check = "ruff check"
 fix = "ruff check --fix --select I"
 format = "ruff format"
+test-examples = "pytest tests/test_pytest_examples.py"
+update-examples = "pytest --update-examples tests/test_pytest_examples.py"
 # ----------
 
 # docs deps and commands 
@@ -88,6 +93,6 @@ quarto = "*"
 # jupyterlab-quarto = "*"
 
 [tool.pixi.feature.docs.tasks]
-docs = {cmd="quarto render .", cwd="docs"}
+docs = {cmd="quarto render .", cwd="docs", depends-on=["test-examples"]}
 write-docs = "jupyter lab"
 # ----------
