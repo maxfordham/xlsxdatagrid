@@ -30,6 +30,6 @@ print(fpth, fpth.is_file())
 
 :::
 
-```{=html}
-<embed src="../xl/test-t.xlsx" width="600px" height="1000px" />
-```
+<a href="../xl/test-t.xlsx">
+  <img src="../logos/Excel-icon.png" alt="Download Excel" width="48">
+</a>

@@ -1,4 +1,5 @@
 project:
+  pre-render: get_examples.py
   type: website
 
 website:
