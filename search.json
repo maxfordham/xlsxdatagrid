@@ -1,14 +1,10 @@
 [
   {
-    "objectID": "examples/many-sheets.html",
-    "href": "examples/many-sheets.html",
-    "title": "many sheets",
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "xlsxdatagrid",
     "section": "",
-    "text": "Notecode\n\n\n\n\n\nimport pathlib\nfrom xlsxdatagrid.xlsxdatagrid import (\n    convert_dict_arrays_to_list_records,\n    from_pydantic_objects,\n)\n\nfrom xlsxdatagrid.demo_schemas.dtypes import (\n    DataTypesBasicFields,\n    DataTypesArray,\n    DataTypesArrayTransposed,\n)\n\nARRAY_DATA = {\n    \"a_int\": [1, 2, 3],\n    \"a_constrainedint\": [3, 3, 3],\n    \"b_float\": [1.5, 2.5, 3.5],\n    \"c_str\": [\"string\", \"asdf\", \"bluey\"],\n    \"c_constrainedstr\": [\"string\", \"string\", \"string\"],\n    \"d_enum\": [\"green\", \"green\", \"blue\"],\n    \"e_bool\": [True, True, False],\n    \"f_date\": [\"2024-06-06\", \"2024-06-06\", \"2024-06-06\"],\n    \"g_datetime\": [\n        \"2024-06-06T10:08:52.078770\",\n        \"2024-06-06T10:08:52.078770\",\n        \"2024-06-06T10:08:52.078770\",\n    ],\n    \"h_time\": [\"10:08:52.078959\", \"10:08:52.078959\", \"10:08:52.078959\"],\n    \"i_duration\": [\"PT2H33M3S\", \"PT2H33M3S\", \"PT2H33M3S\"],\n    \"b_calcfloat\": [1.5, 5.0, 10.5],\n}\n\nARRAY_DATA1 = {\n    k: v * 2 for k, v in ARRAY_DATA.items() if k in DataTypesBasicFields.model_fields\n}\n\npyd_obj = DataTypesArrayTransposed(convert_dict_arrays_to_list_records(ARRAY_DATA))\npyd_obj1 = DataTypesArray(convert_dict_arrays_to_list_records(ARRAY_DATA1))\nfpth = pathlib.Path(\"tests/xl/test-many-sheets.xlsx\")\nfpth.parent.mkdir(parents=True, exist_ok=True)\nfrom_pydantic_objects([pyd_obj, pyd_obj1], fpth)\nprint(fpth, fpth.is_file())\n#&gt; tests/xl/test-many-sheets.xlsx True",
-    "crumbs": [
-      "xlsxdatagrid",
-      "Many Sheets"
-    ]
+    "text": "xlsxdatagrid is a python package for writing well-formatted and type-safe tables to excel. It uses xlsxwriter to write to excel, and ideally tables are defined using pydantic, (see example).\nCheck out the examples in the left hand sidebar to better understand the output."
   },
   {
     "objectID": "examples/from-schema.html",
@@ -20,13 +16,6 @@
       "xlsxdatagrid",
       "From Schema"
     ]
-  },
-  {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "xlsxdatagrid",
-    "section": "",
-    "text": "xlsxdatagrid is a python package for writing well-formatted and type-safe tables to excel. It uses xlsxwriter to write to excel, and ideally tables are defined using pydantic, (see example).\nCheck out the examples in the left hand sidebar to better understand the output."
   },
   {
     "objectID": "examples/from-schema-t.html",
@@ -48,6 +37,17 @@
     "crumbs": [
       "xlsxdatagrid",
       "Chart"
+    ]
+  },
+  {
+    "objectID": "examples/many-sheets.html",
+    "href": "examples/many-sheets.html",
+    "title": "many sheets",
+    "section": "",
+    "text": "Notecode\n\n\n\n\n\nimport pathlib\nfrom xlsxdatagrid.xlsxdatagrid import (\n    convert_dict_arrays_to_list_records,\n    from_pydantic_objects,\n)\n\nfrom xlsxdatagrid.demo_schemas.dtypes import (\n    DataTypesBasicFields,\n    DataTypesArray,\n    DataTypesArrayTransposed,\n)\n\nARRAY_DATA = {\n    \"a_int\": [1, 2, 3],\n    \"a_constrainedint\": [3, 3, 3],\n    \"b_float\": [1.5, 2.5, 3.5],\n    \"c_str\": [\"string\", \"asdf\", \"bluey\"],\n    \"c_constrainedstr\": [\"string\", \"string\", \"string\"],\n    \"d_enum\": [\"green\", \"green\", \"blue\"],\n    \"e_bool\": [True, True, False],\n    \"f_date\": [\"2024-06-06\", \"2024-06-06\", \"2024-06-06\"],\n    \"g_datetime\": [\n        \"2024-06-06T10:08:52.078770\",\n        \"2024-06-06T10:08:52.078770\",\n        \"2024-06-06T10:08:52.078770\",\n    ],\n    \"h_time\": [\"10:08:52.078959\", \"10:08:52.078959\", \"10:08:52.078959\"],\n    \"i_duration\": [\"PT2H33M3S\", \"PT2H33M3S\", \"PT2H33M3S\"],\n    \"b_calcfloat\": [1.5, 5.0, 10.5],\n}\n\nARRAY_DATA1 = {\n    k: v * 2 for k, v in ARRAY_DATA.items() if k in DataTypesBasicFields.model_fields\n}\n\npyd_obj = DataTypesArrayTransposed(convert_dict_arrays_to_list_records(ARRAY_DATA))\npyd_obj1 = DataTypesArray(convert_dict_arrays_to_list_records(ARRAY_DATA1))\nfpth = pathlib.Path(\"tests/xl/test-many-sheets.xlsx\")\nfpth.parent.mkdir(parents=True, exist_ok=True)\nfrom_pydantic_objects([pyd_obj, pyd_obj1], fpth)\nprint(fpth, fpth.is_file())\n#&gt; tests/xl/test-many-sheets.xlsx True",
+    "crumbs": [
+      "xlsxdatagrid",
+      "Many Sheets"
     ]
   }
 ]
