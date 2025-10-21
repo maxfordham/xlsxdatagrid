@@ -1,4 +1,5 @@
 # std libs
+import csv
 import importlib.util
 import json
 import sys
@@ -6,6 +7,8 @@ import typing as ty
 from datetime import timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from io import StringIO
+import numpy as np
 
 from datamodel_code_generator import DataModelType, InputFileType, generate
 from pydantic import AwareDatetime, BaseModel
@@ -73,6 +76,24 @@ def process_data(
 
     return data, metadata
 
+
+def process_edit_tsv_data(
+    data: list[dict],
+    empty_string_to_none: bool = True
+) -> list[dict]:
+    """
+    Converts "" -> None selectively, only for specified fields.
+    """
+    if not empty_string_to_none:
+        return data
+
+    processed = []
+    for record in data:
+        new_record = {}
+        for key, value in record.items():
+            new_record[key] = None if value == "" else value
+        processed.append(new_record)
+    return processed
 
 def read_data(data) -> tuple[list[dict], DataGridMetaData]:
     if data[0][0][0] != "#":
@@ -148,3 +169,73 @@ def read_excel(
     sheet = workbook.sheet_names[0]
     worksheet = workbook.get_sheet_by_name(sheet)
     return read_worksheet(worksheet, get_datamodel)
+
+def read_records(
+    data: list[dict],
+    model: BaseModel,
+) -> list[dict]:
+    if not data:
+        return []
+    # Only normalize specific optional fields
+    data = process_edit_tsv_data(data)
+    if model is not None:
+        records = model.model_validate(data).model_dump(mode="json", by_alias=True, exclude_none=True)
+    else:
+        records = data
+    return records
+
+def read_tsv_string(
+    tsv_string: str,
+    model: BaseModel,
+    transposed: bool = False,
+) -> list[dict]:
+    """
+    Reads TSV data from a string and returns a list of processed dictionaries.
+
+    Args:
+        tsv_string: The TSV string input.
+        model: Pydantic model for validation.
+        transposed: If True, interprets TSV as transposed (key-value pairs per line).
+
+    Returns:
+        A list of validated and/or processed dicts.
+    """
+    if not tsv_string.strip():
+        return []
+
+    tsv_file = StringIO(tsv_string.strip())
+    reader = csv.reader(tsv_file, delimiter="\t")
+
+    # --- Handle transposed vs normal string ---
+    if transposed:
+        tsv_string = data_to_tsv_transposed(tsv_string)
+    
+    data = []
+    tsv_file = StringIO(tsv_string)
+    reader = csv.reader(tsv_file, delimiter="\t")
+    header = next(reader)  # Read the header row
+    for row in reader:
+        # Create a dictionary for each row, mapping header to row values
+        row_dict = dict(zip(header, row))
+        data.append(row_dict)
+    if model is not None:
+        return read_records(data, model)
+    return data
+
+def data_to_tsv_transposed(tsv_string):
+    input_io = StringIO(tsv_string)
+    reader = csv.reader(input_io, delimiter="\t")
+    
+    rows = list(reader)
+    if not rows:
+        return ""
+
+    # Transpose using zip
+    transposed = list(zip(*rows))
+
+    output = StringIO()
+    writer = csv.writer(output, delimiter="\t")
+    for row in transposed:
+        writer.writerow(row)
+
+    return output.getvalue()

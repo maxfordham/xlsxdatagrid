@@ -4,7 +4,7 @@ import typing as ty
 
 from pydantic import BaseModel
 
-from xlsxdatagrid.read import pydantic_model_from_json_schema, read_excel
+from xlsxdatagrid.read import pydantic_model_from_json_schema, read_excel, read_records, read_tsv_string
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 
 from .constants import PATH_JSONSCHEMA_RAW
@@ -14,6 +14,8 @@ from .test_xlsxdatagrid import (
     from_json_with_null,  # req. fixture  # noqa: F401
     write_table_test,  # req. fixture  # noqa: F401
 )
+
+from .edit_tsv_records_model import DistributionBoard
 
 schemas = [TestArray.model_json_schema(), TestArrayTransposed.model_json_schema()]
 schemas = {s["title"]: s for s in schemas}
@@ -112,7 +114,115 @@ def test_read_excel(write_table_test):  # noqa: F811
     assert isinstance(obj, list)
     assert len(obj) == 3
     print("done")
+    
+def test_read_records(type_spec_model=DistributionBoard):  # noqa: F811
+    """
+        Test to ensure that the data is consistent between edit tsv and within the editgrid.
+        In some cases EditTsv replaces None with ''
+    """
+    edit_tsv_records = [
+        {
+            'Abbreviation': 'DB',
+            'TypeReference': 1,
+            'Symbol': '',
+            'ClassificationUniclassProductNumber': 'Pr_60_70_22_22',
+            'ClassificationUniclassSystemNumber': '',
+            'FunctionReference': '',
+            'Notes': '',
+            'OverallLength': None,
+            'ManufacturerWebsite': 'https://maxfordham.com/',
+            'Voltage': None,
+            'Id': 2
+        },
+        {
+            'Abbreviation': 'DB',
+            'TypeReference': 2,
+            'Symbol': '',
+            'ClassificationUniclassProductNumber': 'Pr_60_70_22_21',
+            'ClassificationUniclassSystemNumber': '',
+            'FunctionReference': '',
+            'Notes': '',
+            'OverallLength': None,
+            'ManufacturerWebsite': 'https://maxfordham.com/',
+            'Voltage': None,
+            'Id': 3
+        }
+    ]
+    type_spec_records = [
+        {
+            'Abbreviation': 'DB',
+            'TypeReference': 1,
+            'Symbol': '',
+            'ClassificationUniclassProductNumber': 'Pr_60_70_22_22',
+            'ClassificationUniclassSystemNumber': '',
+            'FunctionReference': None,
+            'Notes': None,
+            'OverallLength': None,
+            'ManufacturerWebsite': 'https://maxfordham.com/',
+            'Voltage': None,
+            'Id': 2
+        },
+        {
+            'Abbreviation': 'DB',
+            'TypeReference': 2,
+            'Symbol': '',
+            'ClassificationUniclassProductNumber': 'Pr_60_70_22_21',
+            'ClassificationUniclassSystemNumber': '',
+            'FunctionReference': None,
+            'Notes': None,
+            'OverallLength': None,
+            'ManufacturerWebsite': 'https://maxfordham.com/',
+            'Voltage': None,
+            'Id': 3
+        }
+    ]
+    assert type_spec_records != edit_tsv_records
+    obj = read_records(edit_tsv_records, type_spec_model)
+    assert isinstance(obj, list)
+    assert obj != type_spec_records
+    print("done")
 
+def test_read_tsv_string(type_spec_model=DistributionBoard):  # noqa: F811
+    """
+        Test to ensure that the data is consistent between edit tsv string and within the editgrid.
+        In some cases EditTsv replaces None with ''
+    """
+    edit_tsv_string = """Abbreviation\tDB\tDB\nTypeReference\t1\t2\nSymbol\t\t\nClassificationUniclassProductNumber\tPr_60_70_22_22\tPr_60_70_22_21\nClassificationUniclassSystemNumber\t\t\nFunctionReference\t\t\nNotes\t\t\nOverallLength\t1\t2\nManufacturerWebsite\thttps://maxfordham.com/\thttps://maxfordham.com/\nVoltage\t1\t240\nId\t2\t3\n"""
+
+    type_spec_records = [
+    {
+        'Abbreviation': 'DB',
+        'TypeReference': 1,
+        'Symbol': '',
+        'ClassificationUniclassProductNumber': 'Pr_60_70_22_22',
+        'ClassificationUniclassSystemNumber': '',
+        'FunctionReference': None,
+        'Notes': None,
+        'OverallLength': None,
+        'ManufacturerWebsite': 'https://maxfordham.com/',
+        'Voltage': None,
+        'Id': 2
+    },
+    {
+        'Abbreviation': 'DB',
+        'TypeReference': 2,
+        'Symbol': '',
+        'ClassificationUniclassProductNumber': 'Pr_60_70_22_21',
+        'ClassificationUniclassSystemNumber': '',
+        'FunctionReference': None,
+        'Notes': None,
+        'OverallLength': None,
+        'ManufacturerWebsite': 'https://maxfordham.com/',
+        'Voltage': None,
+        'Id': 3
+    }
+]
+
+    assert type_spec_records != edit_tsv_string
+    obj = read_tsv_string(edit_tsv_string, type_spec_model, transposed=True)
+    assert isinstance(obj, list)
+    assert obj != type_spec_records
+    print("done")
 
 def get_raw_jsonschema(metadata: DataGridMetaData) -> dict:
     return json.loads(PATH_JSONSCHEMA_RAW.read_text())
