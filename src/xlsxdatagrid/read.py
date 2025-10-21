@@ -51,27 +51,42 @@ def read_metadata(s: str) -> DataGridMetaData:
     di = {snakecase(x[0]): x[1] for x in li}
     return DataGridMetaData(**di)
 
+def _replace_empty_with_none(value: str) -> ty.Optional[str]:
+    """Helper to replace empty strings with None."""
+    return None if value == "" else value
+
+
+def _cleanse_records(data: list[dict]) -> list[dict]:
+    """Replace empty strings with None in a list of dicts."""
+    return [
+        {k: _replace_empty_with_none(v) for k, v in record.items()}
+        for record in data
+    ]
+
 
 def process_data(
-    data: list[dict], metadata: DataGridMetaData, *, empty_string_to_none=True
+    data: list[dict],
+    metadata: DataGridMetaData,
+    *,
+    empty_string_to_none=True,
 ) -> tuple[list[dict], DataGridMetaData]:
     hd = metadata.header_depth
     is_t = metadata.is_transposed
     if is_t:
         data = list(map(list, zip(*data)))
 
-    # else:
     header_names = [d[0] for d in data[0:hd]]
     data = [d[1:] for d in data]
+
     if empty_string_to_none:
-        data = [[(lambda _: None if _ == "" else _)(_) for _ in d] for d in data]
+        data = [[_replace_empty_with_none(v) for v in row] for row in data]
 
     headers = {h: data[n] for n, h in enumerate(header_names)}
     header = headers[header_names[-1]]
     metadata.datagrid_index_name = list(headers.keys())
     metadata.header = list(headers.values())
 
-    data = data[len(header_names) :]
+    data = data[len(header_names):]
     data = [dict(zip(header, d)) for d in data]
 
     return data, metadata
@@ -81,19 +96,11 @@ def process_edit_tsv_data(
     data: list[dict],
     empty_string_to_none: bool = True
 ) -> list[dict]:
-    """
-    Converts "" -> None selectively, only for specified fields.
-    """
+    """Converts "" -> None for all values in list of dicts."""
     if not empty_string_to_none:
         return data
+    return _cleanse_records(data)
 
-    processed = []
-    for record in data:
-        new_record = {}
-        for key, value in record.items():
-            new_record[key] = None if value == "" else value
-        processed.append(new_record)
-    return processed
 
 def read_data(data) -> tuple[list[dict], DataGridMetaData]:
     if data[0][0][0] != "#":
@@ -176,7 +183,6 @@ def read_records(
 ) -> list[dict]:
     if not data:
         return []
-    # Only normalize specific optional fields
     data = process_edit_tsv_data(data)
     if model is not None:
         records = model.model_validate(data).model_dump(mode="json", by_alias=True, exclude_none=True)
