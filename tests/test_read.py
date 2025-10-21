@@ -109,7 +109,7 @@ def test_get_datamodel():
 
 
 def test_read_excel(write_table_test):  # noqa: F811
-    path = write_table_test
+    path, xl_tbl = write_table_test
     obj, metadata = read_excel(path, get_datamodel=get_datamodel)
     assert isinstance(obj, list)
     assert len(obj) == 3

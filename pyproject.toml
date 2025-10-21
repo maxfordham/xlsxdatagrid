@@ -95,4 +95,5 @@ quarto = "*"
 [tool.pixi.feature.docs.tasks]
 docs = {cmd="quarto render .", cwd="docs", depends-on=["test-examples"]}
 write-docs = "jupyter lab"
+open-docs = {cmd="/mnt/c/windows/explorer.exe index.html", cwd="docs/_site"} # this will only work on WSL
 # ----------

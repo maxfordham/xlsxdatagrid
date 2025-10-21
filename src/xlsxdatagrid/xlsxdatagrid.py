@@ -442,7 +442,7 @@ class XlGrid(BaseModel):
         "time": TIME_FORMAT,
         "duration": DURATION_FORMAT,
     }
-    conditional_formats: list[dict] = []
+    conditional_formats: list[tuple[int, int, int, int, dict]] = []
     hide_gridlines: Annotated[int, annotated_types.Interval(ge=0, le=2)] = (
         2  # hidden by default
     )
@@ -453,162 +453,12 @@ class XlTableWriter(XlGrid):
     gridschema: DataGridSchema
     data: dict[str, list]
 
-    @model_validator(mode="after") # TODO: move to def 
-    def build(self) -> "XlTableWriter":
-        self.metadata = self.gridschema.metadata_fstring.format(
-            **self.gridschema.model_dump()
-        )
-        x, y = self.xy  # start coordinates
-        is_t = self.gridschema.is_transposed
-        ix_nm = self.gridschema.datagrid_index_name  # column headings
-        hd = self.gridschema.header_depth  # header depth
-        fd_nns = self.gridschema.field_names  # field names
-        length = (
-            len(self.data[fd_nns[0]]) - 1 if len(self.data) > 0 else 0
-        )  # length of data arrays
-        self.format_headers = hd * [None]
-
-        # ensure data and key col names in same order
-        if self.gridschema.field_names != list(self.data.keys()):
-            self.data = {
-                x: (lambda x, data: data[x] if x in data.keys() else [None] * length)(
-                    x, self.data
-                )
-                for x in self.gridschema.field_names
-            }
-        assert self.gridschema.field_names == list(self.data.keys())
-        # TODO: allow option of only outputting fields which have data associated with them
-
-        if is_t:
-            x += 1
-        else:
-            y += 1
-        # ^ leave room for the header names
-
-        x += 1
-        # ^ leave room for the metadata
-
-        if not is_t:  # build a normal xl table
-            self.xy_arrays = {
-                f: (x + hd, y + n) for n, f in enumerate(fd_nns)
-            }  # +1 as below header row
-            self.rng_arrays = {
-                k: (v[0], v[1], v[0] + length, v[1]) for k, v in self.xy_arrays.items()
-            }
-            beg, end = self.rng_arrays[fd_nns[0]][0:2], self.rng_arrays[fd_nns[-1]][2:4]
-            beg = (beg[0] - 1, beg[1])  # inc. header
-            self.tbl_range = (*beg, *end)
-            self.xy_headers = [(x + n, y) for n in range(0, hd)]
-            self.rng_headers = [
-                (v[0], v[1], v[0], v[1] + len(self.xy_arrays)) for v in self.xy_headers
-            ]  # (x1, y1, x2, y2)
-
-            self.tbl_headers = self.gridschema.header[-1]
-
-            # formulas currently only posible with normal tables
-            map_names = {
-                k: v
-                for k, v in zip(set(self.gridschema.field_names), set(self.tbl_headers))
-            }
-            self.formula_arrays = {
-                f.name: py2xl_formula(f.formula, map_names)
-                for f in self.gridschema.fields
-                if f.formula is not None
-            } | {
-                f.name: getattr(f, "xl_formula")
-                for f in self.gridschema.fields
-                if hasattr(f, "xl_formula") and getattr(f, "xl_formula") is not None
-            }  # formula override (normally empty)
-
-        else:  # build a transposed xl table
-            self.xy_arrays = {
-                f: (x + n, y + hd) for n, f in enumerate(fd_nns)
-            }  # +1 as below header row
-            self.rng_arrays = {
-                k: (v[0], v[1], v[0], v[1] + length) for k, v in self.xy_arrays.items()
-            }
-            beg, end = self.rng_arrays[fd_nns[0]][0:2], self.rng_arrays[fd_nns[-1]][2:4]
-            beg = (beg[0] - 1, beg[1] - hd)  # inc. header
-            self.tbl_range = (*beg, *end)
-            self.xy_headers = [(x, y + n) for n in range(0, hd)]
-            self.rng_headers = [
-                (v[0], v[1], v[0] + len(self.xy_arrays), v[1]) for v in self.xy_headers
-            ]  # (x1, y1, x2, y2)
-            self.tbl_headers = None
-
-        # get colour the header sections
-        palettes_in_use = []
-        self.header_sections = [h for h in self.header_sections if h in ix_nm]
-        di_section_colors = {}
-        for h in self.header_sections:
-            sections = list(set([getattr(f, h) for f in self.gridschema.fields]))
-            colors = get_color_pallette(len(sections), palettes_in_use)
-            di_section_colors = di_section_colors | {
-                h: [(s, c) for s, c in zip(sections, colors)]
-            }
-        
-        for v in di_section_colors.values():
-            self.formats = self.formats | {f"{x[1]}": {"bg_color": x[1]} for x in v}
-
-        # colour the header sections
-        for k, v in di_section_colors.items():
-            r1, c1, r2, c2 = self.rng_headers[ix_nm.index(k)]
-            for _ in v:
-                self.conditional_formats = self.conditional_formats + [
-                    [
-                        r1,
-                        c1,
-                        r2,
-                        c2,
-                        {
-                            "type": "cell",
-                            "criteria": "equal to",
-                            "value": '"{0}"'.format(_[0]),
-                            "format": _[1],
-                        },
-                    ]
-                ]
-
-        self.validation_arrays = {
-            f.name: get_xl_constraints(f) for f in self.gridschema.fields
-        }
-        dates = [f.name for f in self.gridschema.fields if f.format == "date"]
-        date_times = [f.name for f in self.gridschema.fields if f.format == "date-time"]
-        durations = [f.name for f in self.gridschema.fields if f.format == "duration"]
-        times = [f.name for f in self.gridschema.fields if f.format == "time"]
-
-        for d in date_times:
-            self.data[d] = [
-                _datetime_to_excel_datetime(get_datetime(v), False, True)
-                for v in self.data[d]
-            ]
-            self.format_arrays[d] = "datetime"
-        for d in dates:
-            self.data[d] = [
-                _datetime_to_excel_datetime(get_datetime(v), False, True)
-                for v in self.data[d]
-            ]
-            self.format_arrays[d] = "date"
-        for d in times:
-            self.data[d] = [
-                _datetime_to_excel_datetime(get_time(v), False, True)
-                for v in self.data[d]
-            ]
-            self.format_arrays[d] = "time"
-        for d in durations:
-            self.data[d] = [
-                _datetime_to_excel_datetime(get_duration(v), False, True)
-                for v in self.data[d]
-            ]
-            self.format_arrays[d] = "duration"
-
-        return self
 
 class DataGridData(RootModel):
-    root: dict[ty.Union[str, int, float], list]
+    root: dict[ty.Union[str, int, float], list] # columnar data
 
 
-def get_xlgrid(gridschema: DataGridSchema, data: DataGridData) -> XlTableWriter:
+def get_xlgrid(gridschema: DataGridSchema, data: DataGridData) -> XlGrid:
     data = data.root
     header_sections = ["section", "category"]
     start_coordinates = 0, 0 
@@ -709,6 +559,7 @@ def get_xlgrid(gridschema: DataGridSchema, data: DataGridData) -> XlTableWriter:
             (v[0], v[1], v[0] + len(xy_arrays), v[1]) for v in xy_headers
         ]  # (x1, y1, x2, y2)
         tbl_headers = None
+        formula_arrays = {}
 
     # get colour the header sections
     palettes_in_use = []
@@ -739,7 +590,7 @@ def get_xlgrid(gridschema: DataGridSchema, data: DataGridData) -> XlTableWriter:
                         "type": "cell",
                         "criteria": "equal to",
                         "value": '"{0}"'.format(_[0]),
-                        "format": _[1],
+                        "format": _[1], # formats[_[1]]
                     },
                 ]
             ]
@@ -783,6 +634,7 @@ def get_xlgrid(gridschema: DataGridSchema, data: DataGridData) -> XlTableWriter:
     di["xy"] = start_coordinates
     di["header_sections"] = header_sections
     di["metadata"] = metadata
+    di["formats"] = formats
     di["format_headers"] = format_headers
     di["formula_arrays"] = formula_arrays
     di["format_arrays"] = format_arrays
@@ -860,7 +712,6 @@ def convert_dict_arrays_to_list_records(
     return [dict(zip(data.keys(), values)) for values in zip(*data.values())]
 
 
-
 def coerce_data(data: ty.Union[dict[ty.Union[str, int, float], list], list[dict], pd.DataFrame]) -> DataGridData:
     if isinstance(data, DataGridData):
         return data
@@ -914,7 +765,7 @@ def coerce_schema(
 
 def write_grid(
     workbook, xlgrid: XlGrid, gridschema: DataGridSchema, data: DataGridData
-):
+) -> xw.worksheet.Worksheet:
     data = data.root
     name = gridschema.title
     worksheet = workbook.add_worksheet(name=name)
@@ -947,7 +798,7 @@ def write_grid(
         di = c[4]
         f = di["format"]
         di = di | {"format": formats[f]}
-        conditional_formats += [c[0:4] + [di]]
+        conditional_formats += [list(c[0:4]) + [di]]
     _format = dict(bold=True) | header_border | {"locked": True}
     if gridschema.is_transposed:
         _format = _format | {"align": "right"}
@@ -1027,15 +878,13 @@ def write_grid(
 
     if len(gridschema.datagrid_index_name) > 1:
         if gridschema.is_transposed:
-            rngs, gridschema.datagrid_index_name = xlgrid.xy_headers, gridschema.header
+            rngs = xlgrid.xy_headers
         else:
-            rngs, gridschema.datagrid_index_name = (
-                xlgrid.xy_headers[:-1],
-                gridschema.header[:-1],
-            )  # table headers are inserted into when adding table
+            rngs = xlgrid.xy_headers[:-1]
+            # table headers are inserted into when adding table
         {
             write_header(*start_cell, data, header_cell_format)
-            for start_cell, data in zip(rngs, gridschema.datagrid_index_name)
+            for start_cell, data in zip(rngs, gridschema.header)
         }
 
     if xlgrid.validation_arrays is not None:
@@ -1043,7 +892,7 @@ def write_grid(
             if v is not None:
                 rng = xlgrid.rng_arrays[k]
                 worksheet.data_validation(*rng, options=v)
-
+    # print("add conditional formats...")
     for c in conditional_formats:
         worksheet.conditional_format(*c)
 
@@ -1078,171 +927,19 @@ def write_grid(
 
 
 
-def write_table(workbook, xl_tbl: XlTableWriter):
-    name = xl_tbl.gridschema.title
-    worksheet = workbook.add_worksheet(name=name)
-    is_t = xl_tbl.gridschema.is_transposed
-    headers = xl_tbl.gridschema.datagrid_index_name
-    ix_nm = xl_tbl.gridschema.datagrid_index_name
-    hd = len(ix_nm)  # header depth
-    xl_tbl.xy[0] if is_t else xl_tbl.xy[1]
-    write_array = worksheet.write_row if is_t else worksheet.write_column
-    write_header = worksheet.write_row if not is_t else worksheet.write_column
-    header_index = xl_tbl.xy_headers[-1][1] if is_t else xl_tbl.xy_headers[-1][0]
-    set_header_border = (
-        functools.partial(worksheet.set_row, header_index)
-        if not is_t
-        else functools.partial(worksheet.set_column, header_index, header_index)
-    )
-    freeze_panes = (0, header_index + 1) if is_t else (header_index + 1, 0)
-    header_border = {"right": 5} if is_t else {"bottom": 5}
-    formats = {k: workbook.add_format(v) for k, v in xl_tbl.formats.items()}
-    format_arrays = {k: formats[v] for k, v in xl_tbl.format_arrays.items()}
-    conditional_formats = []
-
-    for c in xl_tbl.conditional_formats:
-        di = c[4]
-        f = di["format"]
-        di = di | {"format": formats[f]}
-        conditional_formats += [c[0:4] + [di]]
-    _format = dict(bold=True) | header_border | {"locked": True}
-    if is_t:
-        _format = _format | {"align": "right"}
-
-    header_cell_format = workbook.add_format(_format)
-    calc_cell_format = workbook.add_format(dict(font_color="blue", italic=True))
-    header_label_cell_format = workbook.add_format(
-        dict(font_color="#999999", italic=True)
-    )
-    header_white_cell_format = workbook.add_format(dict(font_color="#FFFFFF"))
-
-    # special formats for arrays (mostly used for datetime)
-    # for k, v in xl_tbl.format_arrays.items():
-
-    # make table --------------------------
-    length = len(list(xl_tbl.data.values())[0]) + len(ix_nm)
-
-    def get_name(n, hd):
-        return f"Column{n}" if n >= hd else ix_nm[n]
-
-    column_labels = [get_name(n, hd) for n in range(0, length)]
-
-    formula_columns = []
-    if is_t:  # transposed - with headers
-        columns = [{"header": c} for c in column_labels]
-
-        options = dict(
-            style="Table Style Light 1",
-            header_row=True,
-            first_column=False,
-            columns=columns,
-        )
-
-    else:  # not transposed - with headers
-        columns = {
-            f.name: {"header": h}
-            | {
-                k: v
-                for k, v in f.model_dump(exclude_none=True).items()
-                if k in XL_TABLE_COLUMNS_PROPERTIES[0:6]
-            }
-            for h, f in zip(xl_tbl.tbl_headers, xl_tbl.gridschema.fields)
-        }
-        for k, v in xl_tbl.formula_arrays.items():
-            if "formula" in columns[k].keys():
-                formula_columns += [k]
-                columns[k]["formula"] = xl_tbl.formula_arrays[k]
-                columns[k]["format"] = calc_cell_format
-
-        for k, v in xl_tbl.format_arrays.items():
-            columns[k]["format"] = formats[v]
-        # ^ TODO: formatting dates and datetime as numeric with excel string formatting
-        options = dict(
-            style="Table Style Light 1",
-            header_row=True,
-            first_column=False,
-            columns=list(columns.values()),
-        )
-
-    options = options  # | {"name": name}  # TODO: <- table name needs to not inc. spaces etc... update
-    # ^ a known table name will be important if / when we want to do lookups between tables...
-
-    worksheet.add_table(*xl_tbl.tbl_range, options)
-    # NOTE: if you write a table to excel with a header - the table range includes the header.
-
-    # -------------------------------------
-    # write arrays
-    for k, v in xl_tbl.xy_arrays.items():
-        if k not in formula_columns:
-            # li = list(np.array(xl_tbl.data[k]))
-            li = xl_tbl.data[k]
-
-            if k in format_arrays:
-                write_array(*v, li, format_arrays[k])
-            else:
-                write_array(*v, li)
-
-    if len(ix_nm) > 1:
-        if xl_tbl.gridschema.is_transposed:
-            rngs, headers = xl_tbl.xy_headers, xl_tbl.gridschema.header
-        else:
-            rngs, headers = (
-                xl_tbl.xy_headers[:-1],
-                xl_tbl.gridschema.header[:-1],
-            )  # table headers are inserted into when adding table
-        {
-            write_header(*start_cell, data, header_cell_format)
-            for start_cell, data in zip(rngs, headers)
-        }
-
-    if xl_tbl.validation_arrays is not None:
-        for k, v in xl_tbl.validation_arrays.items():
-            if v is not None:
-                rng = xl_tbl.rng_arrays[k]
-                worksheet.data_validation(*rng, options=v)
-
-    for c in conditional_formats:
-        worksheet.conditional_format(*c)
-
-    # apply header border
-    cell_format = workbook.add_format(dict(valign="top") | header_border)
-    set_header_border(None, cell_format)
-
-    # write column labels
-    x, y = xl_tbl.xy
-    x += 1  # for metadata row
-    write_array(*(x, y), column_labels[0:hd], header_label_cell_format)
-    if is_t:
-        # set empty table headers to be white
-        y += hd
-        write_array(
-            *(x, y),
-            column_labels[hd : len(column_labels)],
-            header_white_cell_format,
-        )
-
-    # write array comments
-    for k, v in xl_tbl.comment_arrays.items():
-        cell = xl_tbl.xy_arrays[k]
-        worksheet.write_comment(xl_rowcol_to_cell(*cell), *v)
-
-    worksheet.freeze_panes(*freeze_panes)
-    worksheet.autofit()
-    worksheet.hide_gridlines(xl_tbl.hide_gridlines)
-    # write metadata
-    worksheet.write(*xl_tbl.xy, xl_tbl.metadata, header_label_cell_format)
-    return worksheet
-
-
 def write_sheet(
     workbook: xw.Workbook,
     data: list[dict],
     gridschema: ty.Union[dict, DataGridSchema, BaseModel, ty.Type[BaseModel]],
 ) -> tuple[xw.worksheet.Worksheet, XlTableWriter]:
     gridschema = coerce_schema(gridschema)
-    data = convert_list_records_to_dict_arrays(data)
-    xl_tbl = XlTableWriter(data=data, gridschema=gridschema)
-    return write_table(workbook, xl_tbl), xl_tbl
+    griddata = coerce_data(data)
+    xlgrid = get_xlgrid(gridschema, griddata)
+    wsheet = write_grid(workbook, xlgrid, gridschema, griddata)
+
+    xl_tbl = XlTableWriter(data=griddata.model_dump(), gridschema=gridschema, **xlgrid.model_dump())
+    # data = convert_list_records_to_dict_arrays(data)
+    return wsheet, xl_tbl
 
 
 def write_sheets(
@@ -1292,7 +989,7 @@ def from_json(
         fpth = pathlib.Path(gridschema.title + ".xlsx")
     workbook, xl_tbl, worksheet = wb_from_json(data, gridschema, fpth=fpth)
     workbook.close()
-    return fpth
+    return fpth, xl_tbl
 
 
 def from_jsons(
