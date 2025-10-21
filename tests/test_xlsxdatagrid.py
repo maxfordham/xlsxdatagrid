@@ -34,7 +34,7 @@ from xlsxdatagrid.xlsxdatagrid import (
     from_pydantic_objects,
     wb_from_dataframe,
     wb_from_dataframes,
-    write_table,
+    # write_table,
     convert_dict_arrays_to_list_records
 )
 
@@ -281,12 +281,12 @@ def ensure_xl_dir():
 def write_table_test(request):
     fpth, pyd_obj = get_pydantic_test_inputs(is_transposed=request.param)
     fpth.unlink(missing_ok=True)
-    fpth = from_pydantic_object(pyd_obj, fpth)
-    return fpth
+    fpth, xl_tbl = from_pydantic_object(pyd_obj, fpth)
+    return fpth, xl_tbl
 
 
 def test_pydantic_object_write_table(write_table_test):
-    fpth = write_table_test
+    fpth, xl_tbl = write_table_test
     assert fpth.is_file()
 
 
@@ -314,14 +314,18 @@ def get_schema_test_inputs(is_transposed=False):
 
 @pytest.mark.parametrize("is_transposed", [True, False])
 def test_schema_and_data_write_table(is_transposed):
+    from xlsxdatagrid.xlsxdatagrid import write_grid, get_xlgrid, DataGridData, DataGridSchema #  write_table,
     fpth, schema, data = get_schema_test_inputs(is_transposed=is_transposed)
 
     fpth.unlink(missing_ok=True)
-    gridschema = convert_records_to_datagrid_schema(schema)
+    gridschema = DataGridSchema(**convert_records_to_datagrid_schema(schema))
+    griddata = DataGridData(root=data)
+    xlgrid = get_xlgrid(gridschema, griddata)
 
-    xl_tbl = XlTableWriter(gridschema=gridschema, data=data)
+    # xl_tbl = XlTableWriter(gridschema=gridschema, data=data)
+
     workbook = xw.Workbook(str(fpth))
-    write_table(workbook, xl_tbl)
+    write_grid(workbook, xlgrid, gridschema, griddata)
     workbook.close()
     assert fpth.is_file()
 
@@ -329,6 +333,8 @@ def test_schema_and_data_write_table(is_transposed):
 @pytest.mark.skip(reason="needs the MXF api so skip for CI")
 class TestDigitalSchedulesApi:
     def test_schema_and_data_from_digital_schedules_api():
+        from xlsxdatagrid.xlsxdatagrid import write_table
+
         fpth = c.PATH_XL_FROM_API
         response = requests.get(
             "https://aectemplater-dev.maxfordham.com/type_specs/project_revision/1/object/602/grid?override_units=true"
