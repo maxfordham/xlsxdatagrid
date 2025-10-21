@@ -4,11 +4,10 @@ import importlib.util
 import json
 import sys
 import typing as ty
-from datetime import timezone
+from datetime import timezone, time, date, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from io import StringIO
-import numpy as np
 
 from datamodel_code_generator import DataModelType, InputFileType, generate
 from pydantic import AwareDatetime, BaseModel
@@ -55,16 +54,6 @@ def _replace_empty_with_none(value: str) -> ty.Optional[str]:
     """Helper to replace empty strings with None."""
     return None if value == "" else value
 
-
-def _cleanse_records(data: list[dict]) -> list[dict]:
-    """Replace empty strings with None in a list of dicts."""
-    return [
-        {k: _replace_empty_with_none(v) for k, v in record.items()}
-        for record in data
-    ]
-
-import datetime
-
 def process_data(
     data: list[
         list[
@@ -72,35 +61,31 @@ def process_data(
             | float
             | str
             | bool
-            | datetime.time
-            | datetime.date
-            | datetime.datetime
-            | datetime.timedelta
+            | time
+            | date
+            | datetime
+            | timedelta
         ],],
     is_transposed: bool = False,
     header_depth: int = 1,
     datagrid_index_name: ty.Optional[list[str]] = None,
     *,
     empty_string_to_none=True,
+    include_header_line: bool = True,
+    model: BaseModel | None = None,
 ) -> list[dict]:
-    return data 
-
-def get_header(data):
-    return None
-
-def process_data(
-    data: list[list],
-    metadata: DataGridMetaData,
-    *,
-    empty_string_to_none=True,
-) -> tuple[list[dict], DataGridMetaData]:
-    hd = metadata.header_depth
-    is_t = metadata.is_transposed
-    if is_t:
+    metadata: DataGridMetaData = DataGridMetaData(
+        title="",
+        is_transposed=is_transposed,
+        header_depth=header_depth,
+        datagrid_index_name=tuple(datagrid_index_name or ()),
+    )
+    if is_transposed:
         data = list(map(list, zip(*data)))
 
-    header_names = [d[0] for d in data[0:hd]]
-    data = [d[1:] for d in data]
+    header_names = [d[0] for d in data[0:header_depth]]
+    if include_header_line:
+        data = [d[1:] for d in data]
 
     if empty_string_to_none:
         data = [[_replace_empty_with_none(v) for v in row] for row in data]
@@ -115,25 +100,24 @@ def process_data(
 
     return data, metadata
 
-
-def process_edit_tsv_data(
-    data: list[dict],
-    empty_string_to_none: bool = True
-) -> list[dict]:
-    """Converts "" -> None for all values in list of dicts."""
-    if not empty_string_to_none:
-        return data
-    return _cleanse_records(data)
-
-
-def read_data(data) -> tuple[list[dict], DataGridMetaData]:
-    if data[0][0][0] != "#":
-        raise ValueError(
-            "the first row must be a metadata string beginning with the char '#'"
-        )
-    metadata = read_metadata(data[0][0])
-    data = data[1:]
-    return process_data(data, metadata)
+def read_data(
+    data, 
+    includes_header_line = True,
+    is_transposed: bool = False,
+    header_depth: int = 1,
+    datagrid_index_name: list[str] | None = None,   
+    model: BaseModel | None = None,    
+) -> tuple[list[dict], DataGridMetaData]:
+    if includes_header_line:
+        if data[0][0][0] != "#":
+            raise ValueError(
+                "the first row must be a metadata string beginning with the char '#'"
+            )
+        metadata = read_metadata(data[0][0])
+        data = data[1:]
+        return process_data(data, metadata.is_transposed, metadata.header_depth, metadata.datagrid_index_name)
+    else:
+        return process_data(data, is_transposed, header_depth, datagrid_index_name, include_header_line=includes_header_line, model=model)
 
 
 def get_datamodel(metadata: DataGridMetaData) -> dict:
@@ -176,27 +160,17 @@ def get_list_of_list_from_string(tsv_string: str, delimiter: str = "\t") -> list
             | float
             | str
             | bool
-            | datetime.time
-            | datetime.date
-            | datetime.datetime
-            | datetime.timedelta
+            | time
+            | date
+            | datetime
+            | timedelta
         ],]:
     tsv_file = StringIO(tsv_string.strip())
     reader = csv.reader(tsv_file, delimiter=delimiter)
     data = [x for x in reader]
     return data
 
-def read_worksheet(
-    worksheet: CalamineSheet,
-    get_datamodel: ty.Optional[ty.Callable[[DataGridMetaData], dict]] = None,
-    *,
-    return_pydantic_model: bool = False,
-) -> list[dict]:
-    data = get_list_of_list_from_worksheet(worksheet) 
-    # metadata = get_metadata(data[0][0])
-    # data = process_data(data[1:], metadata) # TODO
-    data, metadata = read_data(data)
-
+def pydantic_validate_data(data, metadata = None, get_datamodel = None, return_pydantic_model: bool = False, model: BaseModel | None = None):
     if get_datamodel is not None:
         json_schema = get_datamodel(metadata)
         if json_schema is not None:
@@ -215,10 +189,23 @@ def read_worksheet(
                 )
         else:
             return data, metadata
+    elif model is not None:
+        return model.model_validate(data).model_dump(mode="json", by_alias=True), metadata
     else:
         return data, metadata
 
-
+def read_worksheet(
+    worksheet: CalamineSheet,
+    get_datamodel: ty.Optional[ty.Callable[[DataGridMetaData], dict]] = None,
+    *,
+    return_pydantic_model: bool = False,
+) -> list[dict]:
+    data = get_list_of_list_from_worksheet(worksheet) 
+    # metadata = get_metadata(data[0][0])
+    # data = process_data(data[1:], metadata) # TODO
+    data, metadata = read_data(data)
+    return pydantic_validate_data(data, metadata, get_datamodel, return_pydantic_model=return_pydantic_model)
+    
 def read_excel(
     path,
     get_datamodel: ty.Optional[
@@ -230,76 +217,13 @@ def read_excel(
     worksheet = workbook.get_sheet_by_name(sheet)
     return read_worksheet(worksheet, get_datamodel)
 
-def read_records( # TODO: DELETE
-    data: list[dict],
-    model: BaseModel,
-) -> list[dict]:
-    if not data:
-        return []
-    data = process_edit_tsv_data(data)
-    if model is not None:
-        records = model.model_validate(data).model_dump(mode="json", by_alias=True, exclude_none=True)
-    else:
-        records = data
-    return records
-
-
-    
-
-def read_tsv_string( # TODO: DELETE
+def read_tsv_string(
     tsv_string: str,
-    model: BaseModel,
-    transposed: bool = False,
-) -> list[dict]:
-    """
-    Reads TSV data from a string and returns a list of processed dictionaries.
-
-    Args:
-        tsv_string: The TSV string input.
-        model: Pydantic model for validation.
-        transposed: If True, interprets TSV as transposed (key-value pairs per line).
-
-    Returns:
-        A list of validated and/or processed dicts.
-    """
-    if not tsv_string.strip():
-        return []
-
-    # tsv_file = StringIO(tsv_string.strip())
-    # reader = csv.reader(tsv_file, delimiter="\t")
-    # data = [x for x in reader]
-    # return data
-
-    # --- Handle transposed vs normal string ---
-    if transposed:
-        tsv_string = data_to_tsv_transposed(tsv_string)
-    
-    data = []
-    tsv_file = StringIO(tsv_string)
-    reader = csv.reader(tsv_file, delimiter="\t")
-    header = next(reader)  # Read the header row
-    for row in reader:
-        # Create a dictionary for each row, mapping header to row values
-        row_dict = dict(zip(header, row))
-        data.append(row_dict)
-    if model is not None:
-        return read_records(data, model)
-    return data
-
-def data_to_tsv_transposed(tsv_string): # TODO: DELETE
-    input_io = StringIO(tsv_string)
-    reader = csv.reader(input_io, delimiter="\t")
-    
-    rows = list(reader)
-    if not rows:
-        return ""
-
-    # Transpose using zip
-    transposed = list(zip(*rows))
-
-    output = StringIO()
-    writer = csv.writer(output, delimiter="\t")
-    for row in transposed:
-        writer.writerow(row)
-
-    return output.getvalue()
+    includes_header_line: bool = False,
+    is_transposed: bool = False,
+    header_depth: int = 1,
+    model: BaseModel | None = None,
+):
+    data = get_list_of_list_from_string(tsv_string)
+    processed_data = read_data(data, includes_header_line, is_transposed, header_depth, model=model)
+    return pydantic_validate_data(processed_data[0], None, model=model)
