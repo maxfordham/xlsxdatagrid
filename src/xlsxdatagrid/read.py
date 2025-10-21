@@ -85,6 +85,9 @@ def process_data(
 ) -> list[dict]:
     return data 
 
+def get_header(data):
+    return None
+
 def process_data(
     data: list[list],
     metadata: DataGridMetaData,
@@ -167,7 +170,7 @@ def get_list_of_list_from_worksheet(worksheet: CalamineSheet) -> list[list]:
     return worksheet.to_python(skip_empty_area=True)
 
 
-def get_list_of_list_from_tsv_string(tsv_string: str) -> list[
+def get_list_of_list_from_string(tsv_string: str, delimiter: str = "\t") -> list[
         list[
             int
             | float
@@ -179,7 +182,7 @@ def get_list_of_list_from_tsv_string(tsv_string: str) -> list[
             | datetime.timedelta
         ],]:
     tsv_file = StringIO(tsv_string.strip())
-    reader = csv.reader(tsv_file, delimiter="\t")
+    reader = csv.reader(tsv_file, delimiter=delimiter)
     data = [x for x in reader]
     return data
 
