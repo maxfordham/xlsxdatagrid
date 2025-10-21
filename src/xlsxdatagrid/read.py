@@ -63,9 +63,30 @@ def _cleanse_records(data: list[dict]) -> list[dict]:
         for record in data
     ]
 
+import datetime
 
 def process_data(
-    data: list[dict],
+    data: list[
+        list[
+            int
+            | float
+            | str
+            | bool
+            | datetime.time
+            | datetime.date
+            | datetime.datetime
+            | datetime.timedelta
+        ],],
+    is_transposed: bool = False,
+    header_depth: int = 1,
+    datagrid_index_name: ty.Optional[list[str]] = None,
+    *,
+    empty_string_to_none=True,
+) -> list[dict]:
+    return data 
+
+def process_data(
+    data: list[list],
     metadata: DataGridMetaData,
     *,
     empty_string_to_none=True,
@@ -135,6 +156,32 @@ def make_datetime_tz_aware(data, pydantic_model):
     else:
         return data
 
+def get_metadata(data) -> DataGridMetaData:
+    if data[0][0] != "#":
+        raise ValueError(
+            "the first row must be a metadata string beginning with the char '#'"
+        )
+    return read_metadata(data[0][0])
+
+def get_list_of_list_from_worksheet(worksheet: CalamineSheet) -> list[list]:
+    return worksheet.to_python(skip_empty_area=True)
+
+
+def get_list_of_list_from_tsv_string(tsv_string: str) -> list[
+        list[
+            int
+            | float
+            | str
+            | bool
+            | datetime.time
+            | datetime.date
+            | datetime.datetime
+            | datetime.timedelta
+        ],]:
+    tsv_file = StringIO(tsv_string.strip())
+    reader = csv.reader(tsv_file, delimiter="\t")
+    data = [x for x in reader]
+    return data
 
 def read_worksheet(
     worksheet: CalamineSheet,
@@ -142,8 +189,11 @@ def read_worksheet(
     *,
     return_pydantic_model: bool = False,
 ) -> list[dict]:
-    data = worksheet.to_python(skip_empty_area=True)
+    data = get_list_of_list_from_worksheet(worksheet) 
+    # metadata = get_metadata(data[0][0])
+    # data = process_data(data[1:], metadata) # TODO
     data, metadata = read_data(data)
+
     if get_datamodel is not None:
         json_schema = get_datamodel(metadata)
         if json_schema is not None:
@@ -177,7 +227,7 @@ def read_excel(
     worksheet = workbook.get_sheet_by_name(sheet)
     return read_worksheet(worksheet, get_datamodel)
 
-def read_records(
+def read_records( # TODO: DELETE
     data: list[dict],
     model: BaseModel,
 ) -> list[dict]:
@@ -190,7 +240,10 @@ def read_records(
         records = data
     return records
 
-def read_tsv_string(
+
+    
+
+def read_tsv_string( # TODO: DELETE
     tsv_string: str,
     model: BaseModel,
     transposed: bool = False,
@@ -209,8 +262,10 @@ def read_tsv_string(
     if not tsv_string.strip():
         return []
 
-    tsv_file = StringIO(tsv_string.strip())
-    reader = csv.reader(tsv_file, delimiter="\t")
+    # tsv_file = StringIO(tsv_string.strip())
+    # reader = csv.reader(tsv_file, delimiter="\t")
+    # data = [x for x in reader]
+    # return data
 
     # --- Handle transposed vs normal string ---
     if transposed:
@@ -228,7 +283,7 @@ def read_tsv_string(
         return read_records(data, model)
     return data
 
-def data_to_tsv_transposed(tsv_string):
+def data_to_tsv_transposed(tsv_string): # TODO: DELETE
     input_io = StringIO(tsv_string)
     reader = csv.reader(input_io, delimiter="\t")
     
