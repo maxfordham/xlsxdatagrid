@@ -14,7 +14,7 @@ etc.
 ```
 """
 
-from xlsxdatagrid.read import read_excel, read_tsv_string
+from xlsxdatagrid.read import read_excel, read_csv_string
 from xlsxdatagrid.xlsxdatagrid import (
     from_dataframe,
     from_dataframes,
@@ -44,5 +44,5 @@ __all__ = [
     "wb_from_json",
     "wb_from_jsons",
     "read_excel",  # TODO: improve functionality here...
-    "read_tsv_string"
+    "read_csv_string"
 ]

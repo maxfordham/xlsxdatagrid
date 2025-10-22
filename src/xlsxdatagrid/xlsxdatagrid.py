@@ -135,10 +135,10 @@ XL_TABLE_COLUMNS_PROPERTIES = (
 )
 
 
-DATETIME_STR = 'yyyy-dd-mmThh:mm:ss"+00:00"'
-DATE_STR = "yyyy-dd-mm"
+DATETIME_STR = 'yyyy-mm-ddThh:mm:ss"+00:00"'
+DATE_STR = "yyyy-mm-dd"
 TIME_STR = 'hh:mm:ss"+00:00"'
-DURATION_STR = '"P"[h]:mm:ss'
+DURATION_STR = '"PT"h"H"mm"M"ss"S"'
 
 DATETIME_FORMAT = {"num_format": DATETIME_STR}
 DATE_FORMAT = {"num_format": DATE_STR}

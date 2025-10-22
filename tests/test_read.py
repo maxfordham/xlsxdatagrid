@@ -2,9 +2,10 @@ import datetime
 import json
 import typing as ty
 
+import pytest
 from pydantic import BaseModel
 
-from xlsxdatagrid.read import pydantic_model_from_json_schema, read_excel, read_tsv_string
+from xlsxdatagrid.read import pydantic_model_from_json_schema, read_excel, read_csv_string, read_csv_string_with_metadata
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 
 from .constants import PATH_JSONSCHEMA_RAW
@@ -15,10 +16,14 @@ from .test_xlsxdatagrid import (
     write_table_test,  # req. fixture  # noqa: F401
 )
 
-from .transposed_tsv_model import DataTypesArrayTransposed
+from .csv_model import DataTypesArrayTransposed
 
 schemas = [TestArray.model_json_schema(), TestArrayTransposed.model_json_schema()]
 schemas = {s["title"]: s for s in schemas}
+
+
+def _as_delimited(text: str, delimiter: str) -> str:
+    return text if delimiter == "\t" else text.replace("\t", delimiter)
 
 
 # def pydantic_model_from_json_schema(json_schema: str) -> ty.Type[BaseModel]:
@@ -115,135 +120,90 @@ def test_read_excel(write_table_test):  # noqa: F811
     assert len(obj) == 3
     print("done")
     
-# def test_read_records(type_spec_model=DistributionBoard):  # noqa: F811
-#     """
-#         Test to ensure that the data is consistent between edit tsv and within the editgrid.
-#         In some cases EditTsv replaces None with ''
-#     """
-#     edit_tsv_records = [
-#         {
-#             'Abbreviation': 'DB',
-#             'TypeReference': 1,
-#             'Symbol': '',
-#             'ClassificationUniclassProductNumber': 'Pr_60_70_22_22',
-#             'ClassificationUniclassSystemNumber': '',
-#             'FunctionReference': '',
-#             'Notes': '',
-#             'OverallLength': None,
-#             'ManufacturerWebsite': 'https://maxfordham.com/',
-#             'Voltage': None,
-#             'Id': 2
-#         },
-#         {
-#             'Abbreviation': 'DB',
-#             'TypeReference': 2,
-#             'Symbol': '',
-#             'ClassificationUniclassProductNumber': 'Pr_60_70_22_21',
-#             'ClassificationUniclassSystemNumber': '',
-#             'FunctionReference': '',
-#             'Notes': '',
-#             'OverallLength': None,
-#             'ManufacturerWebsite': 'https://maxfordham.com/',
-#             'Voltage': None,
-#             'Id': 3
-#         }
-#     ]
-#     type_spec_records = [
-#         {
-#             'Abbreviation': 'DB',
-#             'TypeReference': 1,
-#             'Symbol': '',
-#             'ClassificationUniclassProductNumber': 'Pr_60_70_22_22',
-#             'ClassificationUniclassSystemNumber': '',
-#             'FunctionReference': None,
-#             'Notes': None,
-#             'OverallLength': None,
-#             'ManufacturerWebsite': 'https://maxfordham.com/',
-#             'Voltage': None,
-#             'Id': 2
-#         },
-#         {
-#             'Abbreviation': 'DB',
-#             'TypeReference': 2,
-#             'Symbol': '',
-#             'ClassificationUniclassProductNumber': 'Pr_60_70_22_21',
-#             'ClassificationUniclassSystemNumber': '',
-#             'FunctionReference': None,
-#             'Notes': None,
-#             'OverallLength': None,
-#             'ManufacturerWebsite': 'https://maxfordham.com/',
-#             'Voltage': None,
-#             'Id': 3
-#         }
-#     ]
-#     assert type_spec_records != edit_tsv_records
-#     obj = read_records(edit_tsv_records, type_spec_model)
-#     assert isinstance(obj, list)
-#     assert obj != type_spec_records
-#     print("done")
 
-# def test_read_tsv_string(type_spec_model=DistributionBoard):  # noqa: F811
-#     """
-#         Test to ensure that the data is consistent between edit tsv string and within the editgrid.
-#         In some cases EditTsv replaces None with ''
-#     """
-#     edit_tsv_string = """Abbreviation\tDB\tDB\nTypeReference\t1\t2\nSymbol\t\t\nClassificationUniclassProductNumber\tPr_60_70_22_22\tPr_60_70_22_21\nClassificationUniclassSystemNumber\t\t\nFunctionReference\t\t\nNotes\t\t\nOverallLength\t1\t2\nManufacturerWebsite\thttps://maxfordham.com/\thttps://maxfordham.com/\nVoltage\t1\t240\nId\t2\t3\n"""
 
-#     type_spec_records = [
-#     {
-#         'Abbreviation': 'DB',
-#         'TypeReference': 1,
-#         'Symbol': '',
-#         'ClassificationUniclassProductNumber': 'Pr_60_70_22_22',
-#         'ClassificationUniclassSystemNumber': '',
-#         'FunctionReference': None,
-#         'Notes': None,
-#         'OverallLength': None,
-#         'ManufacturerWebsite': 'https://maxfordham.com/',
-#         'Voltage': None,
-#         'Id': 2
-#     },
-#     {
-#         'Abbreviation': 'DB',
-#         'TypeReference': 2,
-#         'Symbol': '',
-#         'ClassificationUniclassProductNumber': 'Pr_60_70_22_21',
-#         'ClassificationUniclassSystemNumber': '',
-#         'FunctionReference': None,
-#         'Notes': None,
-#         'OverallLength': None,
-#         'ManufacturerWebsite': 'https://maxfordham.com/',
-#         'Voltage': None,
-#         'Id': 3
-#     }
-# ]
-
-#     assert type_spec_records != edit_tsv_string
-#     obj = read_tsv_string(edit_tsv_string, type_spec_model, transposed=True)
-#     assert isinstance(obj, list)
-#     assert obj != type_spec_records
-#     print("done")
-
-def test_read_tsv_string(write_table_test):
-    tsv_string = """type\ttitle\tname\trow1\trow2\trow3
-                    numeric\tA Int\ta_int\t1\t2\t3
-                    numeric\tA Constrainedint\ta_constrainedint\t3\t3\t3
-                    numeric\tB Float\tb_float\t1.5\t2.5\t3.5
-                    unicode\tC Str\tc_str\tstring\tasdf\tbluey
-                    unicode\tC Constrainedstr\tc_constrainedstr\tstring\tstring\tstring
-                    unicode\tMyColor\td_enum\tgreen\tgreen\tblue
-                    boolean\tE Bool\te_bool\tTRUE\tTRUE\tFALSE
-                    datetime\tF Date\tf_date\t2025-21-10\t2025-21-10\t2025-21-10
-                    datetime\tG Datetime\tg_datetime\t2025-21-10T13:36:16+00:00\t2025-21-10T13:36:16+00:00\t2025-21-10T13:36:16+00:00
-                    datetime\tH Time\th_time\t13:36:16+00:00\t13:36:16+00:00\t13:36:16+00:00
-                    datetime\tI Duration\ti_duration\tP2:33:03\tP2:33:03\tP2:33:03
-                    numeric\tB Calcfloat\tb_calcfloat\t1.5\t5\t10.5"""
+@pytest.mark.parametrize("delimiter", ["\t", ","], ids=["tsv", "csv"])
+def test_read_csv_string(delimiter):
+    string = """numeric	numeric	numeric	unicode	unicode	unicode	boolean	datetime	datetime	datetime	datetime	numeric
+A Int	A Constrainedint	B Float	C Str	C Constrainedstr	MyColor	E Bool	F Date	G Datetime	H Time	I Duration	B Calcfloat
+a_int	a_constrainedint	b_float	c_str	c_constrainedstr	d_enum	e_bool	f_date	g_datetime	h_time	i_duration	b_calcfloat
+1	3	1.5	string	string	green	TRUE	2025-10-22	2025-10-22T11:59:47+00:00	11:59:47+00:00	PT2H33M3S	1.5
+2	3	2.5	asdf	string	green	TRUE	2025-10-22	2025-10-22T11:59:47+00:00	11:59:47+00:00	PT2H33M3S	5
+3	3	3.5	bluey	string	blue	FALSE	2025-10-22	2025-10-22T11:59:47+00:00	11:59:47+00:00	PT2H33M3S	10.5
+"""
 
     model = DataTypesArrayTransposed
-    data, metadata = read_tsv_string(tsv_string, False, True, header_depth=3, model = model)
+    data_string = _as_delimited(string, delimiter)
+    data = read_csv_string(data_string, False, False, header_depth=3, model=model, delimiter=delimiter)
     
     assert isinstance(data, list)
     assert len(data) == 3
+    print("done")
+
+@pytest.mark.parametrize("delimiter", ["\t", ","], ids=["tsv", "csv"])
+def test_read_csv_string_transposed(delimiter):
+    string = """type	title	name	row1	row2	row3
+numeric	A Int	a_int	1	2	3
+numeric	A Constrainedint	a_constrainedint	3	3	3
+numeric	B Float	b_float	1.5	2.5	3.5
+unicode	C Str	c_str	string	asdf	bluey
+unicode	C Constrainedstr	c_constrainedstr	string	string	string
+unicode	MyColor	d_enum	green	green	blue
+boolean	E Bool	e_bool	TRUE	TRUE	FALSE
+datetime	F Date	f_date	2025-10-22	2025-10-22	2025-10-22
+datetime	G Datetime	g_datetime	2025-10-22T13:36:16+00:00	2025-10-22T13:36:16+00:00	2025-10-22T13:36:16+00:00
+datetime	H Time	h_time	13:36:16+00:00	13:36:16+00:00	13:36:16+00:00
+datetime	I Duration	i_duration	PT2H33M3S	PT2H33M3S	PT2H33M3S
+numeric	B Calcfloat	b_calcfloat	1.5	5	10.5
+"""
+
+    model = DataTypesArrayTransposed
+    data_string = _as_delimited(string, delimiter)
+    data = read_csv_string(data_string, False, True, header_depth=3, model=model, delimiter=delimiter)
+    
+    assert isinstance(data, list)
+    assert len(data) == 3
+    print("done")
+    
+@pytest.mark.parametrize("delimiter", ["\t", ","], ids=["tsv", "csv"])
+def test_read_csv_string_with_metadata(delimiter):
+    string = """#Title=TestArray - HeaderDepth=3 - IsTransposed=False - DateTime=2025-10-22 15:15:55.981465 - DatamodelUrl=None												
+section	numeric	numeric	numeric	unicode	unicode	unicode	boolean	datetime	datetime	datetime	datetime	numeric
+title	A Int	A Constrainedint	B Float	C Str	C Constrainedstr	MyColor	E Bool	F Date	G Datetime	H Time	I Duration	B Calcfloat
+name	a_int	a_constrainedint	b_float	c_str	c_constrainedstr	d_enum	e_bool	f_date	g_datetime	h_time	i_duration	b_calcfloat
+	1	3	1.5	string	string	green	TRUE	2025-10-22	2025-10-22T15:15:56+00:00	15:15:56+00:00	PT2H33M03S	1.5
+	2	3	2.5	asdf	string	green	TRUE	2025-10-22	2025-10-22T15:15:56+00:00	15:15:56+00:00	PT2H33M03S	5
+	3	3	3.5	bluey	string	blue	FALSE	2025-10-22	2025-10-22T15:15:56+00:00	15:15:56+00:00	PT2H33M03S	10.5"""
+
+    data_string = _as_delimited(string, delimiter)
+    obj, metadata = read_csv_string_with_metadata(data_string, get_datamodel=get_datamodel, delimiter=delimiter)
+    
+    assert isinstance(obj, list)
+    assert len(obj) == 3
+    print("done")
+    
+@pytest.mark.parametrize("delimiter", ["\t", ","], ids=["tsv", "csv"])
+def test_read_csv_string_with_metadata_transposed(delimiter):
+    string = """#Title=TestArrayTransposed - HeaderDepth=3 - IsTransposed=True - DateTime=2025-10-22 15:42:29.557047 - DatamodelUrl=None					
+section	title	name	Column3	Column4	Column5
+numeric	A Int	a_int	1	2	3
+numeric	A Constrainedint	a_constrainedint	3	3	3
+numeric	B Float	b_float	1.5	2.5	3.5
+unicode	C Str	c_str	string	asdf	bluey
+unicode	C Constrainedstr	c_constrainedstr	string	string	string
+unicode	MyColor	d_enum	green	green	blue
+boolean	E Bool	e_bool	TRUE	TRUE	FALSE
+datetime	F Date	f_date	2025-10-22	2025-10-22	2025-10-22
+datetime	G Datetime	g_datetime	2025-10-22T15:42:30+00:00	2025-10-22T15:42:30+00:00	2025-10-22T15:42:30+00:00
+datetime	H Time	h_time	15:42:30+00:00	15:42:30+00:00	15:42:30+00:00
+datetime	I Duration	i_duration	PT2H33M03S	PT2H33M03S	PT2H33M03S
+numeric	B Calcfloat	b_calcfloat	1.5	5	10.5"""
+
+    data_string = _as_delimited(string, delimiter)
+    obj, metadata = read_csv_string_with_metadata(data_string, get_datamodel=get_datamodel, delimiter=delimiter)
+    
+    assert isinstance(obj, list)
+    assert len(obj) == 3
     print("done")
 
 def get_raw_jsonschema(metadata: DataGridMetaData) -> dict:

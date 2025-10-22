@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field, RootModel, conint, constr, confloat
+from datetime import date, datetime, time, timedelta
 
 
 class DataTypesArrayTransposedItem(BaseModel):
@@ -47,28 +48,28 @@ class DataTypesArrayTransposedItem(BaseModel):
         description='Boolean value (True/False)',
         title='E Bool',
     )
-    f_date: Optional[str] = Field(
+    f_date: Optional[date] = Field(
         None,
         alias='f_date',
-        description='Date value as string (YYYY-MM-DD)',
+        description='Date value (YYYY-MM-DD)',
         title='F Date',
     )
-    g_datetime: Optional[str] = Field(
+    g_datetime: Optional[datetime] = Field(
         None,
         alias='g_datetime',
-        description='Datetime value as string (ISO format)',
+        description='Datetime value (ISO format)',
         title='G Datetime',
     )
-    h_time: Optional[str] = Field(
+    h_time: Optional[time] = Field(
         None,
         alias='h_time',
-        description='Time of day as string (HH:MM:SS)',
+        description='Time of day (HH:MM:SS)',
         title='H Time',
     )
-    i_duration: Optional[str] = Field(
+    i_duration: Optional[timedelta] = Field(
         None,
         alias='i_duration',
-        description='Time duration as string',
+        description='Time duration value',
         title='I Duration',
     )
     b_calcfloat: Optional[confloat(gt=0)] = Field(

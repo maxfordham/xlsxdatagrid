@@ -20,6 +20,10 @@ from stringcase import snakecase
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 
 
+def _replace_empty_with_none(value: str) -> ty.Optional[str]:
+    """Helper to replace empty strings with None."""
+    return None if value == "" else value
+
 def pydantic_model_from_json_schema(json_schema: str) -> ty.Type[BaseModel]:
     load = json_schema["title"].replace(" ", "") if "title" in json_schema else "Model"
     # TODO: refactor this when title vs name vs code has been sorted out...
@@ -43,16 +47,11 @@ def pydantic_model_from_json_schema(json_schema: str) -> ty.Type[BaseModel]:
         spec.loader.exec_module(module)
     return getattr(module, load)
 
-
 def read_metadata(s: str) -> DataGridMetaData:
     s = s.replace("#", "")
     li = [x.split("=") for x in s.split(" - ")]
     di = {snakecase(x[0]): x[1] for x in li}
     return DataGridMetaData(**di)
-
-def _replace_empty_with_none(value: str) -> ty.Optional[str]:
-    """Helper to replace empty strings with None."""
-    return None if value == "" else value
 
 def process_data(
     data: list[
@@ -68,18 +67,9 @@ def process_data(
         ],],
     is_transposed: bool = False,
     header_depth: int = 1,
-    datagrid_index_name: ty.Optional[list[str]] = None,
-    *,
     empty_string_to_none=True,
     include_header_line: bool = True,
-    model: BaseModel | None = None,
 ) -> list[dict]:
-    metadata: DataGridMetaData = DataGridMetaData(
-        title="",
-        is_transposed=is_transposed,
-        header_depth=header_depth,
-        datagrid_index_name=tuple(datagrid_index_name or ()),
-    )
     if is_transposed:
         data = list(map(list, zip(*data)))
 
@@ -92,37 +82,59 @@ def process_data(
 
     headers = {h: data[n] for n, h in enumerate(header_names)}
     header = headers[header_names[-1]]
-    metadata.datagrid_index_name = list(headers.keys())
-    metadata.header = list(headers.values())
 
     data = data[len(header_names):]
     data = [dict(zip(header, d)) for d in data]
 
-    return data, metadata
+    return data
 
-def read_data(
-    data, 
-    includes_header_line = True,
-    is_transposed: bool = False,
-    header_depth: int = 1,
-    datagrid_index_name: list[str] | None = None,   
-    model: BaseModel | None = None,    
+def process_data_with_metadata(
+    data: list[
+        list[
+            int
+            | float
+            | str
+            | bool
+            | time
+            | date
+            | datetime
+            | timedelta
+        ],],
+    get_datamodel: ty.Optional[
+        ty.Callable[[DataGridMetaData], ty.Type[BaseModel]]
+    ] = None,
 ) -> tuple[list[dict], DataGridMetaData]:
-    if includes_header_line:
-        if data[0][0][0] != "#":
-            raise ValueError(
-                "the first row must be a metadata string beginning with the char '#'"
-            )
-        metadata = read_metadata(data[0][0])
-        data = data[1:]
-        return process_data(data, metadata.is_transposed, metadata.header_depth, metadata.datagrid_index_name)
-    else:
-        return process_data(data, is_transposed, header_depth, datagrid_index_name, include_header_line=includes_header_line, model=model)
+    metadata = read_metadata(data[0][0])
+    includes_header_line = True
+    processed_data = process_data(data[1:], metadata.is_transposed, metadata.header_depth, True, includes_header_line)
+    processed_metadata = process_metadata(metadata, data)
+    json_schema = get_datamodel(processed_metadata)  if get_datamodel is not None else None
+    if json_schema is not None:
+        pydantic_model = pydantic_model_from_json_schema(json_schema)
+    if pydantic_model is not None:
+        processed_data = pydantic_validate_data(processed_data, pydantic_model)
+    return processed_data, processed_metadata
 
+def process_metadata(
+    metadata: DataGridMetaData,
+    data: list[dict]
+) -> DataGridMetaData:
+    """Extracts DataGridMetaData from the given data."""
+    hd = metadata.header_depth
+    is_t = metadata.is_transposed
+    if is_t:
+        data = list(map(list, zip(*data)))
+
+    header_names = [d[0] for d in data[0:hd]]
+    data = [d[1:] for d in data]
+    headers = {h: data[n] for n, h in enumerate(header_names)}
+    metadata.datagrid_index_name = list(headers.keys())
+    metadata.header = list(headers.values())
+    
+    return metadata
 
 def get_datamodel(metadata: DataGridMetaData) -> dict:
     pass
-
 
 def make_datetime_tz_aware(data, pydantic_model):
     def field_is_aware_datetime(field):
@@ -139,22 +151,17 @@ def make_datetime_tz_aware(data, pydantic_model):
     row_model = pydantic_model.model_fields["root"].annotation.__args__[0]
     keys = [k for k, v in row_model.model_fields.items() if field_is_aware_datetime(v)]
     if len(keys) > 0:
+        #HACK: if data is from csv string, run the pydantic validation before adding timezone info
+        if type(data[0][keys[0]]) is str:
+            data = pydantic_model.model_validate(data).model_dump(mode="python", by_alias=True)
         return [d | {k: d[k].replace(tzinfo=timezone.utc) for k in keys} for d in data]
     else:
         return data
 
-def get_metadata(data) -> DataGridMetaData:
-    if data[0][0] != "#":
-        raise ValueError(
-            "the first row must be a metadata string beginning with the char '#'"
-        )
-    return read_metadata(data[0][0])
-
 def get_list_of_list_from_worksheet(worksheet: CalamineSheet) -> list[list]:
     return worksheet.to_python(skip_empty_area=True)
 
-
-def get_list_of_list_from_string(tsv_string: str, delimiter: str = "\t") -> list[
+def get_list_of_list_from_string(csv_string: str, delimiter: str = "\t") -> list[
         list[
             int
             | float
@@ -165,47 +172,19 @@ def get_list_of_list_from_string(tsv_string: str, delimiter: str = "\t") -> list
             | datetime
             | timedelta
         ],]:
-    tsv_file = StringIO(tsv_string.strip())
-    reader = csv.reader(tsv_file, delimiter=delimiter)
+    csv_file = StringIO(csv_string.strip())
+    reader = csv.reader(csv_file, delimiter=delimiter)
     data = [x for x in reader]
     return data
 
-def pydantic_validate_data(data, metadata = None, get_datamodel = None, return_pydantic_model: bool = False, model: BaseModel | None = None):
-    if get_datamodel is not None:
-        json_schema = get_datamodel(metadata)
-        if json_schema is not None:
-            pydantic_model = pydantic_model_from_json_schema(json_schema)
-
-            data = make_datetime_tz_aware(data, pydantic_model)
-            # ^ HACK: assume utc time for all datetimes as excel doesn't support tz...
-            if return_pydantic_model:
-                return pydantic_model.model_validate(data), metadata
-            else:
-                return (
-                    pydantic_model.model_validate(data).model_dump(
-                        mode="json", by_alias=True
-                    ),
-                    metadata,
-                )
-        else:
-            return data, metadata
-    elif model is not None:
-        return model.model_validate(data).model_dump(mode="json", by_alias=True), metadata
+def pydantic_validate_data(data, pydantic_model: BaseModel, return_pydantic_model: bool = False):
+    data = make_datetime_tz_aware(data, pydantic_model)
+    obj = pydantic_model.model_validate(data)
+    if return_pydantic_model:
+        return obj
     else:
-        return data, metadata
+        return obj.model_dump(mode="json", by_alias=True)
 
-def read_worksheet(
-    worksheet: CalamineSheet,
-    get_datamodel: ty.Optional[ty.Callable[[DataGridMetaData], dict]] = None,
-    *,
-    return_pydantic_model: bool = False,
-) -> list[dict]:
-    data = get_list_of_list_from_worksheet(worksheet) 
-    # metadata = get_metadata(data[0][0])
-    # data = process_data(data[1:], metadata) # TODO
-    data, metadata = read_data(data)
-    return pydantic_validate_data(data, metadata, get_datamodel, return_pydantic_model=return_pydantic_model)
-    
 def read_excel(
     path,
     get_datamodel: ty.Optional[
@@ -215,15 +194,27 @@ def read_excel(
     workbook = CalamineWorkbook.from_path(path)
     sheet = workbook.sheet_names[0]
     worksheet = workbook.get_sheet_by_name(sheet)
-    return read_worksheet(worksheet, get_datamodel)
+    data = get_list_of_list_from_worksheet(worksheet)
+    return process_data_with_metadata(data, get_datamodel)
 
-def read_tsv_string(
-    tsv_string: str,
+def read_csv_string(
+    csv_string: str,
     includes_header_line: bool = False,
     is_transposed: bool = False,
     header_depth: int = 1,
     model: BaseModel | None = None,
+    delimiter: str = ",",
 ):
-    data = get_list_of_list_from_string(tsv_string)
-    processed_data = read_data(data, includes_header_line, is_transposed, header_depth, model=model)
-    return pydantic_validate_data(processed_data[0], None, model=model)
+    data = get_list_of_list_from_string(csv_string, delimiter=delimiter)
+    processed_data = process_data(data, is_transposed, header_depth, True, includes_header_line)
+    return pydantic_validate_data(processed_data, model)
+
+def read_csv_string_with_metadata(
+    csv_string: str,
+    get_datamodel: ty.Optional[
+        ty.Callable[[DataGridMetaData], ty.Type[BaseModel]]
+    ] = None,
+    delimiter: str = ",",
+):
+    data = get_list_of_list_from_string(csv_string, delimiter=delimiter)
+    return process_data_with_metadata(data, get_datamodel)
