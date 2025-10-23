@@ -55,5 +55,5 @@ class DistributionBoardItem(BaseModel):
     Voltage: Optional[float] = Field(None, description='', title='Voltage')
 
 
-class DistributionBoard(RootModel[List[DistributionBoardItem]]):
+class DistributionBoard(RootModel):
     root: List[DistributionBoardItem] = Field(..., title='Distribution Board')

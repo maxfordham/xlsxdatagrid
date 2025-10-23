@@ -80,7 +80,7 @@ class DataTypesArrayTransposedItem(BaseModel):
     )
 
 
-class DataTypesArrayTransposed(RootModel[List[DataTypesArrayTransposedItem]]):
+class DataTypesArrayTransposed(RootModel):
     root: List[DataTypesArrayTransposedItem] = Field(
         ...,
         title='Data Types Array Transposed',
