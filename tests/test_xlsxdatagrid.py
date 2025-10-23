@@ -20,22 +20,22 @@ from pydantic import (
     StringConstraints,
     computed_field,
 )
-
 from typing_extensions import Annotated
+
 import xlsxdatagrid.xlsxdatagrid as xdg
 from xlsxdatagrid.xlsxdatagrid import (
     DataGridSchema,
     FieldSchema,
     XlTableWriter,
     coerce_schema,
+    # write_table,
+    convert_dict_arrays_to_list_records,
     convert_list_records_to_dict_arrays,
     convert_records_to_datagrid_schema,
     from_pydantic_object,
     from_pydantic_objects,
     wb_from_dataframe,
     wb_from_dataframes,
-    # write_table,
-    convert_dict_arrays_to_list_records
 )
 
 from . import constants as c
@@ -314,7 +314,12 @@ def get_schema_test_inputs(is_transposed=False):
 
 @pytest.mark.parametrize("is_transposed", [True, False])
 def test_schema_and_data_write_table(is_transposed):
-    from xlsxdatagrid.xlsxdatagrid import write_grid, get_xlgrid, DataGridData, DataGridSchema #  write_table,
+    from xlsxdatagrid.xlsxdatagrid import (  #  write_table,
+        DataGridData,
+        DataGridSchema,
+        get_xlgrid,
+        write_grid,
+    )
     fpth, schema, data = get_schema_test_inputs(is_transposed=is_transposed)
 
     fpth.unlink(missing_ok=True)
@@ -588,7 +593,7 @@ def test_get_xlgrid():
         root: list[TestItem]
 
     data = [dict(a=2, b="b", c=None)]
-    from xlsxdatagrid.xlsxdatagrid import get_xlgrid, coerce_schema, coerce_data, XlGrid
+    from xlsxdatagrid.xlsxdatagrid import XlGrid, coerce_data, coerce_schema, get_xlgrid
     
     gridschema = coerce_schema(TestGrid)
     griddata = coerce_data(data)
@@ -607,7 +612,13 @@ def test_write_grid():
         root: list[TestItem]
 
     data = [dict(a=2, b="b", c=None)] * 3
-    from xlsxdatagrid.xlsxdatagrid import get_xlgrid, coerce_schema, coerce_data, XlGrid, write_grid
+    from xlsxdatagrid.xlsxdatagrid import (
+        XlGrid,
+        coerce_data,
+        coerce_schema,
+        get_xlgrid,
+        write_grid,
+    )
     gridschema = coerce_schema(TestGrid)
     griddata = coerce_data(data)
     xlgrid = get_xlgrid(gridschema, griddata)

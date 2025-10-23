@@ -2,6 +2,7 @@
 import pytest
 from pytest_examples import CodeExample, EvalExample, find_examples
 
+
 @pytest.mark.parametrize("example", find_examples("tests/examples"), ids=str)
 def test_pytest_example(example: CodeExample, eval_example: EvalExample):
     if eval_example.update_examples:

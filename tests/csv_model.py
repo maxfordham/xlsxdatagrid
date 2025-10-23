@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import List, Optional, Literal
-from pydantic import BaseModel, Field, RootModel, conint, constr, confloat
 from datetime import date, datetime, time, timedelta
+from typing import List, Literal, Optional
+
+from pydantic import BaseModel, Field, RootModel, confloat, conint, constr
 
 
 class DataTypesArrayTransposedItem(BaseModel):

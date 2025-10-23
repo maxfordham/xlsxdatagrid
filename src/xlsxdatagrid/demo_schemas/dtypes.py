@@ -1,5 +1,6 @@
 from datetime import date, datetime, time, timedelta
 from enum import StrEnum
+
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -11,6 +12,7 @@ from pydantic import (
     computed_field,
 )
 from typing_extensions import Annotated
+
 
 class MyColor(StrEnum):
     RED = "red"
