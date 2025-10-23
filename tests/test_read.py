@@ -2,9 +2,10 @@ import datetime
 import json
 import typing as ty
 
+import pytest
 from pydantic import BaseModel
 
-from xlsxdatagrid.read import pydantic_model_from_json_schema, read_excel
+from xlsxdatagrid.read import pydantic_model_from_json_schema, read_excel, read_csv_string, read_csv_string_with_metadata
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 
 from .constants import PATH_JSONSCHEMA_RAW
@@ -15,8 +16,14 @@ from .test_xlsxdatagrid import (
     write_table_test,  # req. fixture  # noqa: F401
 )
 
+from .csv_model import DataTypesArrayTransposed
+
 schemas = [TestArray.model_json_schema(), TestArrayTransposed.model_json_schema()]
 schemas = {s["title"]: s for s in schemas}
+
+
+def _as_delimited(text: str, delimiter: str) -> str:
+    return text if delimiter == "\t" else text.replace("\t", delimiter)
 
 
 # def pydantic_model_from_json_schema(json_schema: str) -> ty.Type[BaseModel]:
@@ -112,7 +119,92 @@ def test_read_excel(write_table_test):  # noqa: F811
     assert isinstance(obj, list)
     assert len(obj) == 3
     print("done")
+    
 
+
+@pytest.mark.parametrize("delimiter", ["\t", ","], ids=["tsv", "csv"])
+def test_read_csv_string(delimiter):
+    string = """numeric	numeric	numeric	unicode	unicode	unicode	boolean	datetime	datetime	datetime	datetime	numeric
+A Int	A Constrainedint	B Float	C Str	C Constrainedstr	MyColor	E Bool	F Date	G Datetime	H Time	I Duration	B Calcfloat
+a_int	a_constrainedint	b_float	c_str	c_constrainedstr	d_enum	e_bool	f_date	g_datetime	h_time	i_duration	b_calcfloat
+1	3	1.5	string	string	green	TRUE	2025-10-22	2025-10-22T11:59:47+00:00	11:59:47+00:00	PT2H33M3S	1.5
+2	3	2.5	asdf	string	green	TRUE	2025-10-22	2025-10-22T11:59:47+00:00	11:59:47+00:00	PT2H33M3S	5
+3	3	3.5	bluey	string	blue	FALSE	2025-10-22	2025-10-22T11:59:47+00:00	11:59:47+00:00	PT2H33M3S	10.5
+"""
+
+    model = DataTypesArrayTransposed
+    data_string = _as_delimited(string, delimiter)
+    data = read_csv_string(data_string, False, False, header_depth=3, model=model, delimiter=delimiter)
+    
+    assert isinstance(data, list)
+    assert len(data) == 3
+    print("done")
+
+@pytest.mark.parametrize("delimiter", ["\t", ","], ids=["tsv", "csv"])
+def test_read_csv_string_transposed(delimiter):
+    string = """type	title	name	row1	row2	row3
+numeric	A Int	a_int	1	2	3
+numeric	A Constrainedint	a_constrainedint	3	3	3
+numeric	B Float	b_float	1.5	2.5	3.5
+unicode	C Str	c_str	string	asdf	bluey
+unicode	C Constrainedstr	c_constrainedstr	string	string	string
+unicode	MyColor	d_enum	green	green	blue
+boolean	E Bool	e_bool	TRUE	TRUE	FALSE
+datetime	F Date	f_date	2025-10-22	2025-10-22	2025-10-22
+datetime	G Datetime	g_datetime	2025-10-22T13:36:16+00:00	2025-10-22T13:36:16+00:00	2025-10-22T13:36:16+00:00
+datetime	H Time	h_time	13:36:16+00:00	13:36:16+00:00	13:36:16+00:00
+datetime	I Duration	i_duration	PT2H33M3S	PT2H33M3S	PT2H33M3S
+numeric	B Calcfloat	b_calcfloat	1.5	5	10.5
+"""
+
+    model = DataTypesArrayTransposed
+    data_string = _as_delimited(string, delimiter)
+    data = read_csv_string(data_string, False, True, header_depth=3, model=model, delimiter=delimiter)
+    
+    assert isinstance(data, list)
+    assert len(data) == 3
+    print("done")
+    
+@pytest.mark.parametrize("delimiter", ["\t", ","], ids=["tsv", "csv"])
+def test_read_csv_string_with_metadata(delimiter):
+    string = """#Title=TestArray - HeaderDepth=3 - IsTransposed=False - DateTime=2025-10-22 15:15:55.981465 - DatamodelUrl=None												
+section	numeric	numeric	numeric	unicode	unicode	unicode	boolean	datetime	datetime	datetime	datetime	numeric
+title	A Int	A Constrainedint	B Float	C Str	C Constrainedstr	MyColor	E Bool	F Date	G Datetime	H Time	I Duration	B Calcfloat
+name	a_int	a_constrainedint	b_float	c_str	c_constrainedstr	d_enum	e_bool	f_date	g_datetime	h_time	i_duration	b_calcfloat
+	1	3	1.5	string	string	green	TRUE	2025-10-22	2025-10-22T15:15:56+00:00	15:15:56+00:00	PT2H33M03S	1.5
+	2	3	2.5	asdf	string	green	TRUE	2025-10-22	2025-10-22T15:15:56+00:00	15:15:56+00:00	PT2H33M03S	5
+	3	3	3.5	bluey	string	blue	FALSE	2025-10-22	2025-10-22T15:15:56+00:00	15:15:56+00:00	PT2H33M03S	10.5"""
+
+    data_string = _as_delimited(string, delimiter)
+    obj, metadata = read_csv_string_with_metadata(data_string, get_datamodel=get_datamodel, delimiter=delimiter)
+    
+    assert isinstance(obj, list)
+    assert len(obj) == 3
+    print("done")
+    
+@pytest.mark.parametrize("delimiter", ["\t", ","], ids=["tsv", "csv"])
+def test_read_csv_string_with_metadata_transposed(delimiter):
+    string = """#Title=TestArrayTransposed - HeaderDepth=3 - IsTransposed=True - DateTime=2025-10-22 15:42:29.557047 - DatamodelUrl=None					
+section	title	name	Column3	Column4	Column5
+numeric	A Int	a_int	1	2	3
+numeric	A Constrainedint	a_constrainedint	3	3	3
+numeric	B Float	b_float	1.5	2.5	3.5
+unicode	C Str	c_str	string	asdf	bluey
+unicode	C Constrainedstr	c_constrainedstr	string	string	string
+unicode	MyColor	d_enum	green	green	blue
+boolean	E Bool	e_bool	TRUE	TRUE	FALSE
+datetime	F Date	f_date	2025-10-22	2025-10-22	2025-10-22
+datetime	G Datetime	g_datetime	2025-10-22T15:42:30+00:00	2025-10-22T15:42:30+00:00	2025-10-22T15:42:30+00:00
+datetime	H Time	h_time	15:42:30+00:00	15:42:30+00:00	15:42:30+00:00
+datetime	I Duration	i_duration	PT2H33M03S	PT2H33M03S	PT2H33M03S
+numeric	B Calcfloat	b_calcfloat	1.5	5	10.5"""
+
+    data_string = _as_delimited(string, delimiter)
+    obj, metadata = read_csv_string_with_metadata(data_string, get_datamodel=get_datamodel, delimiter=delimiter)
+    
+    assert isinstance(obj, list)
+    assert len(obj) == 3
+    print("done")
 
 def get_raw_jsonschema(metadata: DataGridMetaData) -> dict:
     return json.loads(PATH_JSONSCHEMA_RAW.read_text())
