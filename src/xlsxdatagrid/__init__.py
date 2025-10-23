@@ -14,7 +14,7 @@ etc.
 ```
 """
 
-from xlsxdatagrid.read import read_excel, read_csv_string
+from xlsxdatagrid.read import read_csv_string, read_excel
 from xlsxdatagrid.xlsxdatagrid import (
     from_dataframe,
     from_dataframes,

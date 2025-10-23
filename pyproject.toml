@@ -30,7 +30,7 @@ dependencies = [
   "pydantic_extra_types",
   "python-calamine",
   "datamodel-code-generator>=0.28.5",
-  "stringcase",
+  "casefy",
   "frictionless",
   "frictionless[pandas]",
   "dirty_equals",
@@ -67,16 +67,18 @@ xlsxdatagrid = { path = ".", editable = true }
 test = { features = ["test"] }
 docs = { features = ["docs"] }
 
-# test deps and commands 
+# test deps and commands
 [tool.pixi.feature.test.dependencies]
 pytest = "*"
 ruff = ">=0.6.8,<0.7"
+hatch = ">=1,<2"
 
 [tool.pixi.feature.test.pypi-dependencies]
 pytest-examples = "*"
 
 [tool.pixi.feature.test.tasks]
 tests = "pytest"
+build = "hatch build"
 check = "ruff check"
 fix = "ruff check --fix --select I"
 format = "ruff format"
@@ -84,7 +86,7 @@ test-examples = "pytest tests/test_pytest_examples.py"
 update-examples = "pytest --update-examples tests/test_pytest_examples.py"
 # ----------
 
-# docs deps and commands 
+# docs deps and commands
 [tool.pixi.feature.docs.dependencies]
 jupyter = "*"
 quarto = "*"

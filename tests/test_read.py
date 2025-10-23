@@ -5,18 +5,22 @@ import typing as ty
 import pytest
 from pydantic import BaseModel
 
-from xlsxdatagrid.read import pydantic_model_from_json_schema, read_excel, read_csv_string, read_csv_string_with_metadata
+from xlsxdatagrid.read import (
+    pydantic_model_from_json_schema,
+    read_csv_string,
+    read_csv_string_with_metadata,
+    read_excel,
+)
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 
 from .constants import PATH_JSONSCHEMA_RAW
+from .csv_model import DataTypesArrayTransposed
 from .test_xlsxdatagrid import (
     TestArray,
     TestArrayTransposed,
     from_json_with_null,  # req. fixture  # noqa: F401
     write_table_test,  # req. fixture  # noqa: F401
 )
-
-from .csv_model import DataTypesArrayTransposed
 
 schemas = [TestArray.model_json_schema(), TestArrayTransposed.model_json_schema()]
 schemas = {s["title"]: s for s in schemas}

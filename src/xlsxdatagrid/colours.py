@@ -1,4 +1,5 @@
 import logging
+
 # use cmap (which has Bang Wong built in)
 from palettable.tableau import (
     BlueRed_6,

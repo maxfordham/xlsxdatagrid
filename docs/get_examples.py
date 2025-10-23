@@ -1,6 +1,7 @@
 import shutil
 from pathlib import Path
 
+
 def copy_dir(source: Path, dest: Path):
     """Delete contents of dest then copy everything from source."""
     # Ensure dest exists
