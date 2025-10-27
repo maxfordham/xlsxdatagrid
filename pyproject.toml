@@ -7,7 +7,7 @@ name = "xlsxdatagrid"
 dynamic = ["version"]
 description = ''
 readme = "README.md"
-requires-python = ">=3.8,<3.14" # TODO: Remove python 3.14 pin when this issue is fixed. Link: https://github.com/apache/arrow/issues/47438
+requires-python = ">=3.8"
 license = "MIT"
 keywords = []
 authors = [{ name = "jgunstone", email = "j.gunstone@maxfordham.com" }]

@@ -44,5 +44,6 @@ __all__ = [
     "wb_from_json",
     "wb_from_jsons",
     "read_excel",  # TODO: improve functionality here...
-    "read_csv_string"
+    "read_csv_string",
+    "csv_from_string"
 ]
