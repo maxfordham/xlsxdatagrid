@@ -32,8 +32,8 @@ from xlsxdatagrid.xlsxdatagrid import (
     convert_dict_arrays_to_list_records,
     convert_list_records_to_dict_arrays,
     convert_records_to_datagrid_schema,
-    from_pydantic_object,
-    from_pydantic_objects,
+    xdg_from_pydantic_object,
+    xdg_from_pydantic_objects,
     wb_from_dataframe,
     wb_from_dataframes,
 )
@@ -252,7 +252,6 @@ ARRAY_DATA = {
 ARRAY_DATA1 = {k: v * 2 for k, v in ARRAY_DATA.items() if k in Test1.model_fields}
 
 
-
 def get_test_array(is_transposed=False):
     t1, t2, t3 = (
         Test(d_enum=MyColor.GREEN),
@@ -277,11 +276,12 @@ def get_pydantic_test_inputs(is_transposed=False):
 def ensure_xl_dir():
     c.FDIR.mkdir(parents=True, exist_ok=True)
 
+
 @pytest.fixture(params=[True, False])
 def write_table_test(request):
     fpth, pyd_obj = get_pydantic_test_inputs(is_transposed=request.param)
     fpth.unlink(missing_ok=True)
-    fpth, xl_tbl = from_pydantic_object(pyd_obj, fpth)
+    fpth, xl_tbl = xdg_from_pydantic_object(pyd_obj, fpth)
     return fpth, xl_tbl
 
 
@@ -297,7 +297,7 @@ def test_pydantic_objects_write_tables():
     pyd_obj = TestArray(convert_dict_arrays_to_list_records(ARRAY_DATA))
     pyd_obj1 = TestArray1(convert_dict_arrays_to_list_records(ARRAY_DATA1))
 
-    fpth = from_pydantic_objects([pyd_obj, pyd_obj1], fpth)
+    fpth = xdg_from_pydantic_objects([pyd_obj, pyd_obj1], fpth)
     assert fpth.is_file()
 
 
@@ -320,6 +320,7 @@ def test_schema_and_data_write_table(is_transposed):
         get_xlgrid,
         write_grid,
     )
+
     fpth, schema, data = get_schema_test_inputs(is_transposed=is_transposed)
 
     fpth.unlink(missing_ok=True)
@@ -430,16 +431,18 @@ def test_coerce_schema():
 
     assert coerce_schema(TestArray) == IsInstance(DataGridSchema)
 
+
 def test_coerce_data():
     from xlsxdatagrid.xlsxdatagrid import DataGridData, coerce_data
+
     class Row(BaseModel):
         x: int
         y: str
-    
+
     class Grid(RootModel):
         root: list[Row]
 
-    data1 = {"x": [1,2,3], "y": list("abc")}
+    data1 = {"x": [1, 2, 3], "y": list("abc")}
     data2 = [{"x": x, "y": y} for x, y in zip(data1["x"], data1["y"])]
     data3 = pd.DataFrame(data2)
     data4 = Grid.model_validate(data2)
@@ -552,7 +555,7 @@ def from_json_with_null():
         {"a": 3, "b": "c", "c": "f"},
         {"a": None, "b": "d", "c": None},
     ]
-    xdg.from_json(data, schema=TestGrid, fpth=fpth)
+    xdg.xdg_from_json(data, schema=TestGrid, fpth=fpth)
     return fpth, data, TestGrid
 
 
@@ -576,11 +579,8 @@ def test_from_json_empty_data(is_transposed):
     )
 
     data = [dict(a=2, b="b", c=None)]
-    xdg.from_json(data, schema=TestGrid, fpth=fpth, is_transposed=is_transposed)
+    xdg.xdg_from_json(data, schema=TestGrid, fpth=fpth, is_transposed=is_transposed)
     assert fpth.is_file()
-
-
-
 
 
 def test_get_xlgrid():
@@ -594,13 +594,14 @@ def test_get_xlgrid():
 
     data = [dict(a=2, b="b", c=None)]
     from xlsxdatagrid.xlsxdatagrid import XlGrid, coerce_data, coerce_schema, get_xlgrid
-    
+
     gridschema = coerce_schema(TestGrid)
     griddata = coerce_data(data)
     xlgrid = get_xlgrid(gridschema, griddata)
-    
+
     assert isinstance(xlgrid, XlGrid)
     print("done")
+
 
 def test_write_grid():
     class TestItem(BaseModel):
@@ -619,13 +620,16 @@ def test_write_grid():
         get_xlgrid,
         write_grid,
     )
+
     gridschema = coerce_schema(TestGrid)
     griddata = coerce_data(data)
     xlgrid = get_xlgrid(gridschema, griddata)
     c.PATH_WRITE_GRID.unlink(missing_ok=True)
-    workbook = xw.Workbook(str(c.PATH_WRITE_GRID)) 
-    worksheet = write_grid(workbook, xlgrid=xlgrid, gridschema=gridschema, data=griddata)
-    
+    workbook = xw.Workbook(str(c.PATH_WRITE_GRID))
+    worksheet = write_grid(
+        workbook, xlgrid=xlgrid, gridschema=gridschema, data=griddata
+    )
+
     assert isinstance(worksheet, xw.worksheet.Worksheet)
     workbook.close()
     assert c.PATH_WRITE_GRID.is_file()

@@ -11,7 +11,7 @@ from tempfile import TemporaryDirectory
 
 from casefy import snakecase
 from datamodel_code_generator import DataModelType, InputFileType, generate
-from pydantic import AwareDatetime, BaseModel
+from pydantic import AwareDatetime, BaseModel, ValidationError
 
 # 3rd party
 from python_calamine import CalamineSheet, CalamineWorkbook
@@ -61,13 +61,13 @@ def process_data(
     is_transposed: bool = False,
     header_depth: int = 1,
     empty_string_to_none=True,
-    include_header_line: bool = True,
+    remove_header_titles: bool = True,
 ) -> list[dict]:
     if is_transposed:
         data = list(map(list, zip(*data)))
 
     header_names = [d[0] for d in data[0:header_depth]]
-    if include_header_line:
+    if remove_header_titles and not is_transposed:
         data = [d[1:] for d in data]
 
     if empty_string_to_none:
@@ -87,15 +87,16 @@ def process_data_with_metadata(
     get_datamodel: ty.Optional[
         ty.Callable[[DataGridMetaData], ty.Type[BaseModel]]
     ] = None,
+    remove_header_titles: bool = True,
 ) -> tuple[list[dict], DataGridMetaData]:
     metadata = read_metadata(data[0][0])
-    includes_header_line = True
+    data_without_comments = drop_leading_comments(data)
     processed_data = process_data(
-        data[1:],
+        data_without_comments,
         metadata.is_transposed,
         metadata.header_depth,
         True,
-        includes_header_line,
+        remove_header_titles,
     )
     processed_metadata = process_metadata(metadata, data)
     json_schema = (
@@ -153,6 +154,18 @@ def make_datetime_tz_aware(data, pydantic_model):
         return data
 
 
+def drop_leading_comments(data: list[list[str]]) -> list[list[str]]:
+    """
+    Removes only the initial consecutive lines that start with '#'
+    from the list of CSV rows.
+    """
+    for i, row in enumerate(data):
+        # skip empty rows too
+        if not row or not row[0].lstrip().startswith("#"):
+            return data[i:]  # return from the first non-comment line onward
+    return []
+
+
 def get_list_of_list_from_worksheet(worksheet: CalamineSheet) -> list[list]:
     return worksheet.to_python(skip_empty_area=True)
 
@@ -177,32 +190,82 @@ def pydantic_validate_data(
         return obj.model_dump(mode="json", by_alias=True)
 
 
-def read_excel(
+def read_excel_from_metadata(
     path,
     get_datamodel: ty.Optional[
         ty.Callable[[DataGridMetaData], ty.Type[BaseModel]]
     ] = None,
+    remove_header_titles: bool = True,
 ):
     workbook = CalamineWorkbook.from_path(path)
     sheet = workbook.sheet_names[0]
     worksheet = workbook.get_sheet_by_name(sheet)
     data = get_list_of_list_from_worksheet(worksheet)
-    return process_data_with_metadata(data, get_datamodel)
+    return process_data_with_metadata(data, get_datamodel, remove_header_titles)
+
+
+def read_list_of_lists(
+    data: list[list[int | float | str | bool | time | date | datetime | timedelta],],
+    remove_header_titles: bool = True,
+    is_transposed: bool = False,
+    header_depth: int = 1,
+    model: BaseModel | None = None,
+) -> list[dict]:
+    data = drop_leading_comments(data)
+    processed_data = process_data(
+        data, is_transposed, header_depth, True, remove_header_titles
+    )
+    try:
+        validated_data = pydantic_validate_data(processed_data, model)
+        return validated_data, []
+    except ValidationError as exc:
+        return [], exc.errors()
+    # TODO @Arshadwaqas115: why returning a tuple? better to return data only
+
+
+def read_excel(
+    path,
+    remove_header_titles: bool = True,
+    is_transposed: bool = False,
+    header_depth: int = 1,
+    model: BaseModel | None = None,
+):
+    workbook = CalamineWorkbook.from_path(path)
+    sheet = workbook.sheet_names[0]
+    worksheet = workbook.get_sheet_by_name(sheet)
+    data = get_list_of_list_from_worksheet(worksheet)
+    return read_list_of_lists(
+        data, remove_header_titles, is_transposed, header_depth, model
+    )
 
 
 def read_csv_string(
     csv_string: str,
-    includes_header_line: bool = False,
+    remove_header_titles: bool = True,
     is_transposed: bool = False,
     header_depth: int = 1,
     model: BaseModel | None = None,
     delimiter: str = ",",
-):
+) -> list[dict]:
+    """Read a CSV string and process it into a list of dicts, optionally validating with a pydantic model. Note: This gets rid of all initial comments in the CSV string before the data begins.
+
+    Args:
+        csv_string (str): A csv string (could be a tsv string if delimiter is set to "\t").
+        remove_header_titles (bool, optional): Remove the header lines. Defaults to True.
+        is_transposed (bool, optional): Configure whether the csv string is transposed or not. Defaults to False.
+        header_depth (int, optional): The header depth in the csv string. Defaults to 1.
+        model (BaseModel | None, optional): The pydantic model. Defaults to None.
+        delimiter (str, optional): The delimiter that the data is separated on. Defaults to ",".
+        previous_value (list[dict] | None, optional): . Defaults to None.
+
+    Returns:
+        _type_: List of dictionaries representing the data rows.
+    """
+
     data = get_list_of_list_from_string(csv_string, delimiter=delimiter)
-    processed_data = process_data(
-        data, is_transposed, header_depth, True, includes_header_line
+    return read_list_of_lists(
+        data, remove_header_titles, is_transposed, header_depth, model
     )
-    return pydantic_validate_data(processed_data, model)
 
 
 def read_csv_string_with_metadata(
@@ -211,6 +274,7 @@ def read_csv_string_with_metadata(
         ty.Callable[[DataGridMetaData], ty.Type[BaseModel]]
     ] = None,
     delimiter: str = ",",
+    remove_header_titles: bool = True,
 ):
     data = get_list_of_list_from_string(csv_string, delimiter=delimiter)
-    return process_data_with_metadata(data, get_datamodel)
+    return process_data_with_metadata(data, get_datamodel, remove_header_titles)

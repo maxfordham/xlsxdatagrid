@@ -7,7 +7,7 @@ name = "xlsxdatagrid"
 dynamic = ["version"]
 description = ''
 readme = "README.md"
-requires-python = ">=3.8,<3.14" # TODO: Remove python 3.14 pin when this issue is fixed. Link: https://github.com/apache/arrow/issues/47438
+requires-python = ">=3.8"
 license = "MIT"
 keywords = []
 authors = [{ name = "jgunstone", email = "j.gunstone@maxfordham.com" }]
@@ -67,7 +67,7 @@ xlsxdatagrid = { path = ".", editable = true }
 test = { features = ["test"] }
 docs = { features = ["docs"] }
 
-# test deps and commands
+# test deps and commands 
 [tool.pixi.feature.test.dependencies]
 pytest = "*"
 ruff = ">=0.6.8,<0.7"
@@ -86,7 +86,7 @@ test-examples = "pytest tests/test_pytest_examples.py"
 update-examples = "pytest --update-examples tests/test_pytest_examples.py"
 # ----------
 
-# docs deps and commands
+# docs deps and commands 
 [tool.pixi.feature.docs.dependencies]
 jupyter = "*"
 quarto = "*"

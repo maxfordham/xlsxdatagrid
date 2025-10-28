@@ -11,49 +11,49 @@ from pydantic import BaseModel, Field, RootModel
 
 
 class Abbreviation(Enum):
-    DB = 'DB'
+    DB = "DB"
 
 
 class DistributionBoardItem(BaseModel):
     Abbreviation_1: Optional[Abbreviation] = Field(
-        'DB',
-        alias='Abbreviation',
-        description='equipment type abbreviation, alphabetic characters only, variable length, between 2 and 6 characters',
-        title='Abbreviation',
+        "DB",
+        alias="Abbreviation",
+        description="equipment type abbreviation, alphabetic characters only, variable length, between 2 and 6 characters",
+        title="Abbreviation",
     )
     ClassificationUniclassProductNumber: Optional[str] = Field(
-        'Pr_60_70_22_22',
-        description='Product Code that matches a code within the Uniclass Pr tables. https://uniclass.thenbs.com/taxon/pr',
-        title='Classification Uniclass Product Number',
+        "Pr_60_70_22_22",
+        description="Product Code that matches a code within the Uniclass Pr tables. https://uniclass.thenbs.com/taxon/pr",
+        title="Classification Uniclass Product Number",
     )
     ClassificationUniclassSystemNumber: Optional[str] = Field(
-        '',
-        description='System Code that matches a code within the Uniclass Ss tables. https://uniclass.thenbs.com/taxon/ss',
-        title='Classification Uniclass System Number',
+        "",
+        description="System Code that matches a code within the Uniclass Ss tables. https://uniclass.thenbs.com/taxon/ss",
+        title="Classification Uniclass System Number",
     )
     FunctionReference: Optional[str] = Field(
         None,
-        description='indicates the functional use of an element',
-        title='Function Reference',
+        description="indicates the functional use of an element",
+        title="Function Reference",
     )
-    Id: Optional[int] = Field(None, description='', title='Id')
+    Id: Optional[int] = Field(None, description="", title="Id")
     ManufacturerWebsite: Optional[str] = Field(
-        None, description='', title='Manufacturer Website'
+        None, description="", title="Manufacturer Website"
     )
     Notes: Optional[str] = Field(
-        None, description='free flowing notes section', title='Notes'
+        None, description="free flowing notes section", title="Notes"
     )
-    OverallLength: Optional[float] = Field(None, description='', title='Overall Length')
+    OverallLength: Optional[float] = Field(None, description="", title="Overall Length")
     Symbol: Optional[str] = Field(
-        '', description='equipment type symbol. Filename of PNG image', title='Symbol'
+        "", description="equipment type symbol. Filename of PNG image", title="Symbol"
     )
     TypeReference: Optional[int] = Field(
         1,
-        description='equipment type reference, integer only. Refers to equipment type, there may be multiple instances of the same type',
-        title='Type Reference',
+        description="equipment type reference, integer only. Refers to equipment type, there may be multiple instances of the same type",
+        title="Type Reference",
     )
-    Voltage: Optional[float] = Field(None, description='', title='Voltage')
+    Voltage: Optional[float] = Field(None, description="", title="Voltage")
 
 
 class DistributionBoard(RootModel):
-    root: List[DistributionBoardItem] = Field(..., title='Distribution Board')
+    root: List[DistributionBoardItem] = Field(..., title="Distribution Board")

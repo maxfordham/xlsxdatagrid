@@ -116,9 +116,7 @@ XL_TABLE_PROPERTIES = (
 # ^ NOT IN USE. COULD USE FOR VALIDATION... ----------------------
 
 
-METADATA_FSTRING: str = (
-    "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - DatamodelUrl={datamodel_url}"  
-)
+METADATA_FSTRING: str = "#Title={title} - HeaderDepth={header_depth} - IsTransposed={is_transposed} - DateTime={now} - DatamodelUrl={datamodel_url}"
 # ^ TODO: build a metadrata string from what data is present. allow additions to this string but not removals.
 
 MAP_TYPES_JSON_XL = {"integer": "integer", "float": "decimal", "date": "date"}
@@ -317,6 +315,7 @@ class DataGridMetaData(BaseModel):
     )
     is_transposed: bool = False  # TODO: rename -> display_transposed
     header_depth: int = Field(1, validate_default=True)
+    # include_header_titles: bool = True  # TODO
     datamodel_url: ty.Optional[HttpUrl] = Field(
         None, alias_choices=AliasChoices("datamodel_url", "DatamodelUrl")
     )
@@ -418,8 +417,6 @@ def get_duration(d):
     return RootModel[timedelta](d).model_dump()
 
 
-
-
 class XlGrid(BaseModel):
     header_sections: list = ["section", "category"]  # used to colour code only
     xy: tuple[int, int] = 0, 0  # row, col
@@ -449,19 +446,30 @@ class XlGrid(BaseModel):
     metadata: str = ""
     # length: int = 0
 
+
 class XlTableWriter(XlGrid):
     gridschema: DataGridSchema
     data: dict[str, list]
 
 
 class DataGridData(RootModel):
-    root: dict[ty.Union[str, int, float], list] # columnar data
+    root: dict[ty.Union[str, int, float], list]  # columnar data
 
 
-def get_xlgrid(gridschema: DataGridSchema, data: DataGridData) -> XlGrid:
+def generate_metadata_string(gridschema: DataGridSchema) -> str:
+    metadata = gridschema.metadata_fstring.format(**gridschema.model_dump())
+    return metadata
+
+
+def get_xlgrid(
+    gridschema: DataGridSchema,
+    data: DataGridData,
+    exclude_metadata: bool = False,
+    exclude_header_lines: bool = False,
+) -> XlGrid:
     data = data.root
     header_sections = ["section", "category"]
-    start_coordinates = 0, 0 
+    start_coordinates = 0, 0
     formats = {
         "datetime": DATETIME_FORMAT,
         "date": DATE_FORMAT,
@@ -470,20 +478,14 @@ def get_xlgrid(gridschema: DataGridSchema, data: DataGridData) -> XlGrid:
     }
     format_arrays = {}
     # ^ ?
+    metadata = generate_metadata_string(gridschema)
 
-    metadata = gridschema.metadata_fstring.format(
-        **gridschema.model_dump()
-    )
-    
-    
     is_t = gridschema.is_transposed
     ix_nm = gridschema.datagrid_index_name  # column headings
     x, y = start_coordinates
     hd = gridschema.header_depth  # header depth
     fd_nns = gridschema.field_names  # field names
-    length = (
-        len(data[fd_nns[0]]) - 1 if len(data) > 0 else 0
-    )  # length of data arrays
+    length = len(data[fd_nns[0]]) - 1 if len(data) > 0 else 0  # length of data arrays
     format_headers = hd * [None]
 
     di = {}
@@ -504,10 +506,10 @@ def get_xlgrid(gridschema: DataGridSchema, data: DataGridData) -> XlGrid:
     if is_t:
         x += 1
     else:
-        y += 1
+        y += 1 if not exclude_header_lines else 0
     # ^ leave room for the header names
 
-    x += 1
+    x += 1 if not exclude_metadata else 0
     # ^ leave room for the metadata
 
     if not is_t:  # build a normal xl table
@@ -531,8 +533,7 @@ def get_xlgrid(gridschema: DataGridSchema, data: DataGridData) -> XlGrid:
 
         # formulas currently only posible with normal tables
         map_names = {
-            k: v
-            for k, v in zip(set(gridschema.field_names), set(tbl_headers))
+            k: v for k, v in zip(set(gridschema.field_names), set(tbl_headers))
         }
         formula_arrays = {
             f.name: py2xl_formula(f.formula, map_names)
@@ -571,7 +572,7 @@ def get_xlgrid(gridschema: DataGridSchema, data: DataGridData) -> XlGrid:
         di_section_colors = di_section_colors | {
             h: [(s, c) for s, c in zip(sections, colors)]
         }
-    
+
     for v in di_section_colors.values():
         formats = formats | {f"{x[1]}": {"bg_color": x[1]} for x in v}
 
@@ -590,15 +591,13 @@ def get_xlgrid(gridschema: DataGridSchema, data: DataGridData) -> XlGrid:
                         "type": "cell",
                         "criteria": "equal to",
                         "value": '"{0}"'.format(_[0]),
-                        "format": _[1], # formats[_[1]]
+                        "format": _[1],  # formats[_[1]]
                     },
                 ]
             ]
 
-    validation_arrays = {
-        f.name: get_xl_constraints(f) for f in gridschema.fields
-    }
-    validation_arrays = {k:v for k, v in validation_arrays.items() if v is not None}
+    validation_arrays = {f.name: get_xl_constraints(f) for f in gridschema.fields}
+    validation_arrays = {k: v for k, v in validation_arrays.items() if v is not None}
     dates = [f.name for f in gridschema.fields if f.format == "date"]
     date_times = [f.name for f in gridschema.fields if f.format == "date-time"]
     durations = [f.name for f in gridschema.fields if f.format == "duration"]
@@ -606,26 +605,22 @@ def get_xlgrid(gridschema: DataGridSchema, data: DataGridData) -> XlGrid:
 
     for d in date_times:
         data[d] = [
-            _datetime_to_excel_datetime(get_datetime(v), False, True)
-            for v in data[d]
+            _datetime_to_excel_datetime(get_datetime(v), False, True) for v in data[d]
         ]
         format_arrays[d] = "datetime"
     for d in dates:
         data[d] = [
-            _datetime_to_excel_datetime(get_datetime(v), False, True)
-            for v in data[d]
+            _datetime_to_excel_datetime(get_datetime(v), False, True) for v in data[d]
         ]
         format_arrays[d] = "date"
     for d in times:
         data[d] = [
-            _datetime_to_excel_datetime(get_time(v), False, True)
-            for v in data[d]
+            _datetime_to_excel_datetime(get_time(v), False, True) for v in data[d]
         ]
         format_arrays[d] = "time"
     for d in durations:
         data[d] = [
-            _datetime_to_excel_datetime(get_duration(v), False, True)
-            for v in data[d]
+            _datetime_to_excel_datetime(get_duration(v), False, True) for v in data[d]
         ]
         format_arrays[d] = "duration"
 
@@ -647,7 +642,7 @@ def get_xlgrid(gridschema: DataGridSchema, data: DataGridData) -> XlGrid:
     di["validation_arrays"] = validation_arrays
     di["conditional_formats"] = conditional_formats
     di["comment_arrays"] = {}
-    di["hide_gridlines"] = 2 # hidden by default
+    di["hide_gridlines"] = 2  # hidden by default
 
     return XlGrid(**di)
 
@@ -698,6 +693,7 @@ def convert_records_to_datagrid_schema(schema: dict):
     gridschema = {k: v for k, v in gridschema.items() if k not in ["$defs", "items"]}
     return gridschema
 
+
 def convert_list_records_to_dict_arrays(data: list[dict]) -> dict[str, list]:
     if len(data) == 0:
         return {}
@@ -712,7 +708,9 @@ def convert_dict_arrays_to_list_records(
     return [dict(zip(data.keys(), values)) for values in zip(*data.values())]
 
 
-def coerce_data(data: ty.Union[dict[ty.Union[str, int, float], list], list[dict], pd.DataFrame]) -> DataGridData:
+def coerce_data(
+    data: ty.Union[dict[ty.Union[str, int, float], list], list[dict], pd.DataFrame],
+) -> DataGridData:
     if isinstance(data, DataGridData):
         return data
     elif isinstance(data, dict):
@@ -720,11 +718,14 @@ def coerce_data(data: ty.Union[dict[ty.Union[str, int, float], list], list[dict]
     elif isinstance(data, list):
         return DataGridData(root=convert_list_records_to_dict_arrays(data))
     elif isinstance(data, pd.DataFrame):
-        return DataGridData(root=convert_list_records_to_dict_arrays(data.to_dict(orient="records")))
+        return DataGridData(
+            root=convert_list_records_to_dict_arrays(data.to_dict(orient="records"))
+        )
     elif isinstance(data, RootModel):
         return DataGridData(root=convert_list_records_to_dict_arrays(data.model_dump()))
     else:
         raise ValueError(f"unrecognised input datatype {type(data)}")
+
 
 def coerce_schema(
     schema: ty.Union[dict, DataGridSchema, BaseModel, ty.Type[BaseModel]],
@@ -762,9 +763,13 @@ def coerce_schema(
         )
 
 
-
 def write_grid(
-    workbook, xlgrid: XlGrid, gridschema: DataGridSchema, data: DataGridData
+    workbook,
+    xlgrid: XlGrid,
+    gridschema: DataGridSchema,
+    data: DataGridData,
+    exclude_header_lines: bool = False,
+    exclude_metadata: bool = False,
 ) -> xw.worksheet.Worksheet:
     data = data.root
     name = gridschema.title
@@ -824,6 +829,11 @@ def write_grid(
     formula_columns = []
     if gridschema.is_transposed:  # transposed - with headers
         columns = [{"header": c} for c in column_labels]
+        if exclude_header_lines:
+            for idx in range(0, min(header_depth, len(columns))):
+                header_value = columns[idx]["header"]
+                if isinstance(header_value, str):
+                    columns[idx]["header"] = f"#{header_value}"
 
         options = dict(
             style="Table Style Light 1",
@@ -876,7 +886,7 @@ def write_grid(
             else:
                 write_array(*v, li)
 
-    if len(gridschema.datagrid_index_name) > 1:
+    if len(gridschema.datagrid_index_name) > 0:
         if gridschema.is_transposed:
             rngs = xlgrid.xy_headers
         else:
@@ -902,8 +912,14 @@ def write_grid(
 
     # write column labels
     x, y = xlgrid.xy
-    x += 1  # for metadata row
-    write_array(*(x, y), column_labels[0:header_depth], header_label_cell_format)
+    x += 1 if not exclude_metadata else 0  # for metadata row
+    label_values = column_labels[0:header_depth]
+    if gridschema.is_transposed and exclude_header_lines:
+        label_values = [
+            f"#{label}" if isinstance(label, str) else label for label in label_values
+        ]
+    if not (exclude_header_lines and not gridschema.is_transposed):
+        write_array(*(x, y), label_values, header_label_cell_format)
     if gridschema.is_transposed:
         # set empty table headers to be white
         y += header_depth
@@ -922,22 +938,38 @@ def write_grid(
     worksheet.autofit()
     worksheet.hide_gridlines(xlgrid.hide_gridlines)
     # write metadata
-    worksheet.write(*xlgrid.xy, xlgrid.metadata, header_label_cell_format)
+    if not exclude_metadata:
+        worksheet.write(*xlgrid.xy, xlgrid.metadata, header_label_cell_format)
     return worksheet
-
 
 
 def write_sheet(
     workbook: xw.Workbook,
     data: list[dict],
     gridschema: ty.Union[dict, DataGridSchema, BaseModel, ty.Type[BaseModel]],
+    exclude_header_lines: bool = False,
+    exclude_metadata: bool = False,
 ) -> tuple[xw.worksheet.Worksheet, XlTableWriter]:
     gridschema = coerce_schema(gridschema)
     griddata = coerce_data(data)
-    xlgrid = get_xlgrid(gridschema, griddata)
-    wsheet = write_grid(workbook, xlgrid, gridschema, griddata)
+    xlgrid = get_xlgrid(
+        gridschema,
+        griddata,
+        exclude_metadata=exclude_metadata,
+        exclude_header_lines=exclude_header_lines,
+    )
+    wsheet = write_grid(
+        workbook,
+        xlgrid,
+        gridschema,
+        griddata,
+        exclude_header_lines=exclude_header_lines,
+        exclude_metadata=exclude_metadata,
+    )
 
-    xl_tbl = XlTableWriter(data=griddata.model_dump(), gridschema=gridschema, **xlgrid.model_dump())
+    xl_tbl = XlTableWriter(
+        data=griddata.model_dump(), gridschema=gridschema, **xlgrid.model_dump()
+    )
     # data = convert_list_records_to_dict_arrays(data)
     return wsheet, xl_tbl
 
@@ -956,12 +988,22 @@ def write_sheets(
 
 
 def wb_from_json(
-    data: list[dict], schema: dict, fpth: ty.Optional[pathlib.Path] = None
+    data: list[dict],
+    schema: dict,
+    fpth: ty.Optional[pathlib.Path] = None,
+    exclude_header_lines: bool = False,
+    exclude_metadata: bool = False,
 ) -> tuple[xw.Workbook, XlTableWriter, xw.worksheet.Worksheet]:
     if fpth is None:
         fpth = pathlib.Path(schema.get("title") + ".xlsx")
     workbook = xw.Workbook(str(fpth))
-    worksheet, xl_tbl = write_sheet(workbook, data=data, gridschema=schema)
+    worksheet, xl_tbl = write_sheet(
+        workbook,
+        data=data,
+        gridschema=schema,
+        exclude_header_lines=exclude_header_lines,
+        exclude_metadata=exclude_metadata,
+    )
     return workbook, xl_tbl, worksheet
 
 
@@ -976,23 +1018,31 @@ def wb_from_jsons(
     return workbook, worksheets, xl_tbls
 
 
-def from_json(
-    data: dict,
+def xdg_from_json(
+    data: ty.Union[dict[ty.Union[str, int, float], list], list[dict], pd.DataFrame],
     schema: ty.Union[dict, DataGridSchema, BaseModel],
     fpth: ty.Optional[pathlib.Path] = None,
     is_transposed: ty.Optional[bool] = None,
+    exclude_header_lines: bool = False,
+    exclude_metadata: bool = False,
 ):
     gridschema = coerce_schema(schema)
     if is_transposed is not None:
         gridschema.is_transposed = is_transposed
     if fpth is None:
         fpth = pathlib.Path(gridschema.title + ".xlsx")
-    workbook, xl_tbl, worksheet = wb_from_json(data, gridschema, fpth=fpth)
+    workbook, xl_tbl, worksheet = wb_from_json(
+        data,
+        gridschema,
+        fpth=fpth,
+        exclude_header_lines=exclude_header_lines,
+        exclude_metadata=exclude_metadata,
+    )
     workbook.close()
     return fpth, xl_tbl
 
 
-def from_jsons(
+def xdg_from_jsons(
     datas: list[list[dict]],
     gridschemas: list[ty.Union[dict, DataGridSchema, BaseModel]],
     fpth: pathlib.Path = None,
@@ -1060,7 +1110,7 @@ def wb_from_dataframes(
     return workbook, worksheets, xl_tbls
 
 
-def from_dataframe(
+def xdg_from_dataframe(
     dataframe: pd.DataFrame, fpth: pathlib.Path, schema=None
 ) -> pathlib.Path:
     workbook, xl_tbl, worksheet = wb_from_dataframe(dataframe, fpth, schema)
@@ -1068,7 +1118,7 @@ def from_dataframe(
     return fpth
 
 
-def from_dataframes(
+def xdg_from_dataframes(
     dataframes: list[pd.DataFrame],
     fpth: pathlib.Path,
     schemas: ty.Optional[ty.Union[dict, list[dict]]] = None,
@@ -1089,14 +1139,25 @@ def get_data_and_dgschema(
     return data, schema
 
 
-def from_pydantic_object(
-    pydantic_object: ty.Type[BaseModel], fpth: pathlib.Path = None
+def xdg_from_pydantic_object(
+    pydantic_object: ty.Type[BaseModel],
+    fpth: pathlib.Path = None,
+    is_transposed: ty.Optional[bool] = None,
+    exclude_header_lines: bool = False,
+    exclude_metadata: bool = False,
 ) -> pathlib.Path:
     data, schema = get_data_and_dgschema(pydantic_object)
-    return from_json(data, schema, fpth=fpth)
+    return xdg_from_json(
+        data,
+        schema,
+        fpth=fpth,
+        is_transposed=is_transposed,
+        exclude_header_lines=exclude_header_lines,
+        exclude_metadata=exclude_metadata,
+    )
 
 
-def from_pydantic_objects(
+def xdg_from_pydantic_objects(
     pydantic_objects: list[ty.Type[BaseModel]], fpth: pathlib.Path
 ) -> pathlib.Path:
     datas, schemas = zip(
@@ -1105,4 +1166,4 @@ def from_pydantic_objects(
             for pydantic_object in pydantic_objects
         ]
     )
-    return from_jsons(datas, schemas, fpth=fpth)
+    return xdg_from_jsons(datas, schemas, fpth=fpth)
