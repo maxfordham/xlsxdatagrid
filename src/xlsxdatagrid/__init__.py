@@ -51,3 +51,5 @@ __all__ = [
     "csv_from_string",
     "read_excel",
 ]
+from_pydantic_object = xdg_from_pydantic_object # TODO: delete
+from_pydantic_objects = xdg_from_pydantic_objects # TODO: delete
