@@ -1,98 +1,103 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
+from enum import Enum
 from typing import List, Literal, Optional
+from typing_extensions import Annotated
+from pydantic import BaseModel, ConfigDict, Field, RootModel, StringConstraints
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, conint, constr
 
+class MyColor(str, Enum):
+    red = 'red'
+    green = 'green'
+    blue = 'blue'
 
 class DataTypesArrayTransposedItem(BaseModel):
+    a_constrainedint: Annotated[int, Field(ge=1, le=10)] = Field(
+        3,
+        title="A Constrainedint",
+        json_schema_extra=dict(
+            section="numeric",
+        ),
+    )
+
     a_int: Optional[int] = Field(
-        None,
-        alias="a_int",
-        description="Simple integer value",
+        1,
         title="A Int",
         json_schema_extra=dict(section="numeric"),
     )
-    a_constrainedint: Optional[conint(ge=0, le=100)] = Field(
-        None,
-        alias="a_constrainedint",
-        description="Integer constrained between 0 and 100",
-        title="A Constrained Int",
-        json_schema_extra=dict(section="numeric"),
-    )
+
     b_float: Optional[float] = Field(
-        None,
-        alias="b_float",
-        description="Floating point number",
+        1.5,
         title="B Float",
         json_schema_extra=dict(section="numeric"),
     )
+
+    c_constrainedstr: Annotated[str, StringConstraints(min_length=0, max_length=20)] = Field(
+        "string",
+        title="C Constrainedstr",
+        json_schema_extra=dict(
+            section="unicode",
+        ),
+    )
+
     c_str: Optional[str] = Field(
-        None,
-        alias="c_str",
-        description="Basic string field",
+        "string",
         title="C Str",
         json_schema_extra=dict(section="unicode"),
     )
-    c_constrainedstr: Optional[constr(min_length=1, max_length=50)] = Field(
-        None,
-        alias="c_constrainedstr",
-        description="String constrained to length 1–50",
-        title="C Constrained Str",
-        json_schema_extra=dict(section="unicode"),
-    )
-    d_enum: Optional[Literal["red", "green", "blue"]] = Field(
-        None,
-        alias="d_enum",
-        description='String value that must be one of: "red", "green", or "blue"',
+
+    d_enum: MyColor = Field(
+        "red",
         title="D Enum",
-        json_schema_extra=dict(section="unicode"),
+        json_schema_extra=dict(
+            section="unicode",
+        ),
     )
+
     e_bool: Optional[bool] = Field(
-        None,
-        alias="e_bool",
-        description="Boolean value (True/False)",
+        True,
         title="E Bool",
         json_schema_extra=dict(section="boolean"),
     )
+
     f_date: Optional[date] = Field(
-        None,
-        alias="f_date",
-        description="Date value (YYYY-MM-DD)",
+        "2024-06-06",
         title="F Date",
         json_schema_extra=dict(section="datetime"),
     )
+
     g_datetime: Optional[datetime] = Field(
-        None,
-        alias="g_datetime",
-        description="Datetime value (ISO format)",
+        "2024-06-06T10:42:54.822063",
         title="G Datetime",
         json_schema_extra=dict(section="datetime"),
     )
+
     h_time: Optional[time] = Field(
-        None,
-        alias="h_time",
-        description="Time of day (HH:MM:SS)",
+        "10:42:54.822257",
         title="H Time",
         json_schema_extra=dict(section="datetime"),
     )
+
     i_duration: Optional[timedelta] = Field(
-        None,
-        alias="i_duration",
-        description="Time duration value",
+        "PT2H33M3S",
         title="I Duration",
         json_schema_extra=dict(section="datetime"),
+    )
+
+    model_config = ConfigDict(
+        title="Test",
+        json_schema_extra=dict(
+            required=["d_enum", "b_calcfloat"],
+        ),
     )
 
 
 class DataTypesArrayTransposed(RootModel):
     model_config = ConfigDict(
+        title="TestArrayTransposed",
         json_schema_extra=dict(
             datagrid_index_name=("section", "title", "name"),
-        )
+        ),
     )
-    root: List[DataTypesArrayTransposedItem] = Field(
-        ...,
-        title="Data Types Array Transposed",
-    )
+    root: List[DataTypesArrayTransposedItem]
