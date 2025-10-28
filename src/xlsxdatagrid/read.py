@@ -14,7 +14,7 @@ from pydantic import AwareDatetime, BaseModel, ValidationError
 
 # 3rd party
 from python_calamine import CalamineSheet, CalamineWorkbook
-from stringcase import snakecase
+from casefy import snakecase
 
 # local
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
