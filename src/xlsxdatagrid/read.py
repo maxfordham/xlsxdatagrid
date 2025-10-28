@@ -199,6 +199,25 @@ def read_excel(
     data = get_list_of_list_from_worksheet(worksheet)
     return process_data_with_metadata(data, get_datamodel, remove_header_titles)
 
+def read_excel_with_model(
+    path,
+    remove_header_titles: bool = True,
+    is_transposed: bool = False,
+    header_depth: int = 1,
+    model: BaseModel | None = None,
+):
+    workbook = CalamineWorkbook.from_path(path)
+    sheet = workbook.sheet_names[0]
+    worksheet = workbook.get_sheet_by_name(sheet)
+    data = get_list_of_list_from_worksheet(worksheet)
+    data = drop_leading_comments(data)
+    processed_data = process_data(data, is_transposed, header_depth, True, remove_header_titles)
+    try:
+        validated_data = pydantic_validate_data(processed_data, model)
+        return validated_data, []
+    except ValidationError as exc:
+            return [], exc.errors()
+
 def read_csv_string(
     csv_string: str,
     remove_header_titles: bool = True,
@@ -206,7 +225,6 @@ def read_csv_string(
     header_depth: int = 1,
     model: BaseModel | None = None,
     delimiter: str = ",",
-    previous_value: list[dict] | None = None,
 ) -> list[dict]:
     """Read a CSV string and process it into a list of dicts, optionally validating with a pydantic model. Note: This gets rid of all initial comments in the CSV string before the data begins.
     
@@ -230,7 +248,7 @@ def read_csv_string(
         validated_data = pydantic_validate_data(processed_data, model)
         return validated_data, []
     except ValidationError as exc:
-            return previous_value or [], exc.errors()
+            return [], exc.errors()
 
 def read_csv_string_with_metadata(
     csv_string: str,

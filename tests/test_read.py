@@ -10,6 +10,7 @@ from xlsxdatagrid.read import (
     read_csv_string,
     read_csv_string_with_metadata,
     read_excel,
+    read_excel_with_model
 )
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 
@@ -123,19 +124,24 @@ def test_read_excel(write_table_test):  # noqa: F811
     assert isinstance(obj, list)
     assert len(obj) == 3
     print("done")
-    
+
+
+def test_read_excel_with_model(write_table_test):  # noqa: F811
+    path, xl_tbl = write_table_test
+    is_transposed = xl_tbl.gridschema.is_transposed
+    model = DataTypesArrayTransposed
+    data, errors = read_excel_with_model(
+        path,
+        is_transposed=is_transposed,
+        header_depth=xl_tbl.gridschema.header_depth,
+        model=model,
+    )
+    assert isinstance(data, list)
+    assert len(data) == 3
 
 
 @pytest.mark.parametrize("delimiter", ["\t", ","], ids=["tsv", "csv"])
 def test_read_csv_string(delimiter):
-#     string = """numeric	numeric	numeric	unicode	unicode	unicode	boolean	datetime	datetime	datetime	datetime	numeric
-# A Int	A Constrainedint	B Float	C Str	C Constrainedstr	MyColor	E Bool	F Date	G Datetime	H Time	I Duration	B Calcfloat
-# a_int	a_constrainedint	b_float	c_str	c_constrainedstr	d_enum	e_bool	f_date	g_datetime	h_time	i_duration	b_calcfloat
-# 1	3	1.5	string	string	green	TRUE	2025-10-22	2025-10-22T11:59:47+00:00	11:59:47+00:00	PT2H33M3S	1.5
-# 2	3	2.5	asdf	string	green	TRUE	2025-10-22	2025-10-22T11:59:47+00:00	11:59:47+00:00	PT2H33M3S	5
-# 3	3	3.5	bluey	string	blue	FALSE	2025-10-22	2025-10-22T11:59:47+00:00	11:59:47+00:00	PT2H33M3S	10.5
-# """
-
     string = """#Title=DataTypesArray - HeaderDepth=3 - IsTransposed=False - DateTime=2025-10-23 15:52:38.027549 - DatamodelUrl=None												
 section	numeric	numeric	numeric	unicode	unicode	unicode	boolean	datetime	datetime	datetime	datetime	numeric
 title	A Int	A Constrainedint	B Float	C Str	C Constrainedstr	MyColor	E Bool	F Date	G Datetime	H Time	I Duration	B Calcfloat
