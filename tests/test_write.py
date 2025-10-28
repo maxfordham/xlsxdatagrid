@@ -2,6 +2,7 @@ import pathlib
 
 import pytest
 
+from xlsxdatagrid.read import read_excel
 from xlsxdatagrid.xlsxdatagrid import xdg_from_pydantic_object
 
 from .csv_model import DataTypesArrayTransposed
@@ -87,3 +88,14 @@ def test_xdg_from_pydantic_object(
     )
 
     assert out_fpth.exists()
+    
+    data, errors = read_excel(
+        out_fpth,
+        is_transposed=is_transposed,
+        header_depth=3,
+        model=DataTypesArrayTransposed,
+    )
+    
+    assert not errors
+    assert isinstance(data, list)
+    assert len(data) == 3
