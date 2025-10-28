@@ -11,7 +11,7 @@ title: "many sheets"
 import pathlib
 from xlsxdatagrid.xlsxdatagrid import (
     convert_dict_arrays_to_list_records,
-    from_pydantic_objects,
+    xdg_from_pydantic_objects,
 )
 
 from xlsxdatagrid.demo_schemas.dtypes import (
@@ -47,7 +47,7 @@ pyd_obj = DataTypesArrayTransposed(convert_dict_arrays_to_list_records(ARRAY_DAT
 pyd_obj1 = DataTypesArray(convert_dict_arrays_to_list_records(ARRAY_DATA1))
 fpth = pathlib.Path("tests/xl/test-many-sheets.xlsx")
 fpth.parent.mkdir(parents=True, exist_ok=True)
-from_pydantic_objects([pyd_obj, pyd_obj1], fpth)
+xdg_from_pydantic_objects([pyd_obj, pyd_obj1], fpth)
 print(fpth, fpth.is_file())
 #> tests/xl/test-many-sheets.xlsx True
 ```

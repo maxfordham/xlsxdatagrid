@@ -4,17 +4,17 @@ import importlib.util
 import json
 import sys
 import typing as ty
-from datetime import timezone, time, date, datetime, timedelta
+from datetime import date, datetime, time, timedelta, timezone
+from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from io import StringIO
 
+from casefy import snakecase
 from datamodel_code_generator import DataModelType, InputFileType, generate
 from pydantic import AwareDatetime, BaseModel, ValidationError
 
 # 3rd party
 from python_calamine import CalamineSheet, CalamineWorkbook
-from casefy import snakecase
 
 # local
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
@@ -190,7 +190,7 @@ def pydantic_validate_data(
         return obj.model_dump(mode="json", by_alias=True)
 
 
-def read_excel(
+def read_excel_from_metadata(
     path,
     get_datamodel: ty.Optional[
         ty.Callable[[DataGridMetaData], ty.Type[BaseModel]]
@@ -223,7 +223,7 @@ def read_list_of_lists(
     # TODO @Arshadwaqas115: why returning a tuple? better to return data only
 
 
-def read_excel_with_model(
+def read_excel(
     path,
     remove_header_titles: bool = True,
     is_transposed: bool = False,

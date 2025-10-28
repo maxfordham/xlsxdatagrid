@@ -24,6 +24,7 @@ class DataTypes(BaseModel):
     """
     Many data types defined, to be used as a row in excel files
     """
+
     a_int: int = Field(1, json_schema_extra=dict(section="numeric"))
     a_constrainedint: Annotated[int, Field(ge=0, le=10)] = Field(
         3, json_schema_extra=dict(section="numeric")
@@ -56,7 +57,8 @@ class DataTypes(BaseModel):
     )
     def b_calcfloat(self) -> float:
         return self.a_int * self.b_float
-    
+
+
 class DataTypesBasicFields(BaseModel):
     a_int: int = Field(1, json_schema_extra=dict(section="numeric"))
     a_constrainedint: Annotated[int, Field(ge=0, le=10)] = Field(
@@ -77,6 +79,7 @@ class DataTypesArray(RootModel):
     """
     Array of D Types - Rows of excel file
     """
+
     model_config = ConfigDict(
         json_schema_extra=dict(
             datagrid_index_name=("section", "title", "name"), is_transposed=False
@@ -85,11 +88,11 @@ class DataTypesArray(RootModel):
     root: list[DataTypes]
 
 
-
 class DataTypesArrayTransposed(RootModel):
     """
     Array of D Types - Rows of excel file
     """
+
     model_config = ConfigDict(
         json_schema_extra=dict(
             datagrid_index_name=("section", "title", "name"), is_transposed=True
