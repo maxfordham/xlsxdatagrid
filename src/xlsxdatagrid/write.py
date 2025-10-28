@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from xlsxdatagrid.xlsxdatagrid import (
     DataGridSchema,
     coerce_schema,
-    from_pydantic_object,
+    xdg_from_pydantic_object,
     generate_metadata_string,
 )
 

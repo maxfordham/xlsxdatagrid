@@ -1018,7 +1018,7 @@ def wb_from_jsons(
     return workbook, worksheets, xl_tbls
 
 
-def from_json(
+def xdg_from_json(
     data: ty.Union[dict[ty.Union[str, int, float], list], list[dict], pd.DataFrame],
     schema: ty.Union[dict, DataGridSchema, BaseModel],
     fpth: ty.Optional[pathlib.Path] = None,
@@ -1042,7 +1042,7 @@ def from_json(
     return fpth, xl_tbl
 
 
-def from_jsons(
+def xdg_from_jsons(
     datas: list[list[dict]],
     gridschemas: list[ty.Union[dict, DataGridSchema, BaseModel]],
     fpth: pathlib.Path = None,
@@ -1110,7 +1110,7 @@ def wb_from_dataframes(
     return workbook, worksheets, xl_tbls
 
 
-def from_dataframe(
+def xdg_from_dataframe(
     dataframe: pd.DataFrame, fpth: pathlib.Path, schema=None
 ) -> pathlib.Path:
     workbook, xl_tbl, worksheet = wb_from_dataframe(dataframe, fpth, schema)
@@ -1118,7 +1118,7 @@ def from_dataframe(
     return fpth
 
 
-def from_dataframes(
+def xdg_from_dataframes(
     dataframes: list[pd.DataFrame],
     fpth: pathlib.Path,
     schemas: ty.Optional[ty.Union[dict, list[dict]]] = None,
@@ -1139,7 +1139,7 @@ def get_data_and_dgschema(
     return data, schema
 
 
-def from_pydantic_object(
+def xdg_from_pydantic_object(
     pydantic_object: ty.Type[BaseModel],
     fpth: pathlib.Path = None,
     is_transposed: ty.Optional[bool] = None,
@@ -1147,7 +1147,7 @@ def from_pydantic_object(
     exclude_metadata: bool = False,
 ) -> pathlib.Path:
     data, schema = get_data_and_dgschema(pydantic_object)
-    return from_json(
+    return xdg_from_json(
         data,
         schema,
         fpth=fpth,
@@ -1157,7 +1157,7 @@ def from_pydantic_object(
     )
 
 
-def from_pydantic_objects(
+def xdg_from_pydantic_objects(
     pydantic_objects: list[ty.Type[BaseModel]], fpth: pathlib.Path
 ) -> pathlib.Path:
     datas, schemas = zip(
@@ -1166,4 +1166,4 @@ def from_pydantic_objects(
             for pydantic_object in pydantic_objects
         ]
     )
-    return from_jsons(datas, schemas, fpth=fpth)
+    return xdg_from_jsons(datas, schemas, fpth=fpth)

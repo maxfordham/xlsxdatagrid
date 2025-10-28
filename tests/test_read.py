@@ -9,8 +9,8 @@ from xlsxdatagrid.read import (
     pydantic_model_from_json_schema,
     read_csv_string,
     read_csv_string_with_metadata,
+    read_excel_from_metadata,
     read_excel,
-    read_excel_with_model,
 )
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 
@@ -118,19 +118,19 @@ def test_get_datamodel():
     assert jsonschema["title"] == "TestArray"
 
 
-def test_read_excel(write_table_test):  # noqa: F811
+def test_read_excel_from_metadata(write_table_test):  # noqa: F811
     path, xl_tbl = write_table_test
-    obj, metadata = read_excel(path, get_datamodel=get_datamodel)
+    obj, metadata = read_excel_from_metadata(path, get_datamodel=get_datamodel)
     assert isinstance(obj, list)
     assert len(obj) == 3
     print("done")
 
 
-def test_read_excel_with_model(write_table_test):  # noqa: F811
+def test_read_excel(write_table_test):  # noqa: F811
     path, xl_tbl = write_table_test
     is_transposed = xl_tbl.gridschema.is_transposed
     model = DataTypesArrayTransposed
-    data, errors = read_excel_with_model(
+    data, errors = read_excel(
         path,
         is_transposed=is_transposed,
         header_depth=xl_tbl.gridschema.header_depth,
@@ -245,7 +245,7 @@ def get_raw_jsonschema(metadata: DataGridMetaData) -> dict:
 
 def test_read_excel_with_null(from_json_with_null):  # noqa: F811
     fpth, data, schema = from_json_with_null
-    obj, metadata = read_excel(
+    obj, metadata = read_excel_from_metadata(
         fpth, get_datamodel=lambda *args: schema.model_json_schema()
     )
     assert obj == data

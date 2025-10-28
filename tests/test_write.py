@@ -2,7 +2,7 @@ import pathlib
 
 import pytest
 
-from xlsxdatagrid.xlsxdatagrid import from_pydantic_object
+from xlsxdatagrid.xlsxdatagrid import xdg_from_pydantic_object
 
 from .csv_model import DataTypesArrayTransposed
 
@@ -24,7 +24,7 @@ def _as_delimited(text: str, delimiter: str) -> str:
         (False, True, True),
     ],
 )
-def test_from_pydantic_object(
+def test_xdg_from_pydantic_object(
     is_transposed: bool, exclude_metadata: bool, exclude_header_lines: bool
 ):
     data = [
@@ -78,7 +78,7 @@ def test_from_pydantic_object(
         / f"test_from_pydantic_object-{is_transposed}-{exclude_metadata}-{exclude_header_lines}.xlsx"
     )
 
-    out_fpth, _ = from_pydantic_object(
+    out_fpth, _ = xdg_from_pydantic_object(
         pydantic_obj,
         fpth=fpth,
         is_transposed=is_transposed,

@@ -32,8 +32,8 @@ from xlsxdatagrid.xlsxdatagrid import (
     convert_dict_arrays_to_list_records,
     convert_list_records_to_dict_arrays,
     convert_records_to_datagrid_schema,
-    from_pydantic_object,
-    from_pydantic_objects,
+    xdg_from_pydantic_object,
+    xdg_from_pydantic_objects,
     wb_from_dataframe,
     wb_from_dataframes,
 )
@@ -281,7 +281,7 @@ def ensure_xl_dir():
 def write_table_test(request):
     fpth, pyd_obj = get_pydantic_test_inputs(is_transposed=request.param)
     fpth.unlink(missing_ok=True)
-    fpth, xl_tbl = from_pydantic_object(pyd_obj, fpth)
+    fpth, xl_tbl = xdg_from_pydantic_object(pyd_obj, fpth)
     return fpth, xl_tbl
 
 
@@ -297,7 +297,7 @@ def test_pydantic_objects_write_tables():
     pyd_obj = TestArray(convert_dict_arrays_to_list_records(ARRAY_DATA))
     pyd_obj1 = TestArray1(convert_dict_arrays_to_list_records(ARRAY_DATA1))
 
-    fpth = from_pydantic_objects([pyd_obj, pyd_obj1], fpth)
+    fpth = xdg_from_pydantic_objects([pyd_obj, pyd_obj1], fpth)
     assert fpth.is_file()
 
 
@@ -555,7 +555,7 @@ def from_json_with_null():
         {"a": 3, "b": "c", "c": "f"},
         {"a": None, "b": "d", "c": None},
     ]
-    xdg.from_json(data, schema=TestGrid, fpth=fpth)
+    xdg.xdg_from_json(data, schema=TestGrid, fpth=fpth)
     return fpth, data, TestGrid
 
 
@@ -579,7 +579,7 @@ def test_from_json_empty_data(is_transposed):
     )
 
     data = [dict(a=2, b="b", c=None)]
-    xdg.from_json(data, schema=TestGrid, fpth=fpth, is_transposed=is_transposed)
+    xdg.xdg_from_json(data, schema=TestGrid, fpth=fpth, is_transposed=is_transposed)
     assert fpth.is_file()
 
 
