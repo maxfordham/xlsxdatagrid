@@ -252,7 +252,6 @@ ARRAY_DATA = {
 ARRAY_DATA1 = {k: v * 2 for k, v in ARRAY_DATA.items() if k in Test1.model_fields}
 
 
-
 def get_test_array(is_transposed=False):
     t1, t2, t3 = (
         Test(d_enum=MyColor.GREEN),
@@ -276,6 +275,7 @@ def get_pydantic_test_inputs(is_transposed=False):
 @pytest.fixture(autouse=True)
 def ensure_xl_dir():
     c.FDIR.mkdir(parents=True, exist_ok=True)
+
 
 @pytest.fixture(params=[True, False])
 def write_table_test(request):
@@ -320,6 +320,7 @@ def test_schema_and_data_write_table(is_transposed):
         get_xlgrid,
         write_grid,
     )
+
     fpth, schema, data = get_schema_test_inputs(is_transposed=is_transposed)
 
     fpth.unlink(missing_ok=True)
@@ -430,16 +431,18 @@ def test_coerce_schema():
 
     assert coerce_schema(TestArray) == IsInstance(DataGridSchema)
 
+
 def test_coerce_data():
     from xlsxdatagrid.xlsxdatagrid import DataGridData, coerce_data
+
     class Row(BaseModel):
         x: int
         y: str
-    
+
     class Grid(RootModel):
         root: list[Row]
 
-    data1 = {"x": [1,2,3], "y": list("abc")}
+    data1 = {"x": [1, 2, 3], "y": list("abc")}
     data2 = [{"x": x, "y": y} for x, y in zip(data1["x"], data1["y"])]
     data3 = pd.DataFrame(data2)
     data4 = Grid.model_validate(data2)
@@ -580,9 +583,6 @@ def test_from_json_empty_data(is_transposed):
     assert fpth.is_file()
 
 
-
-
-
 def test_get_xlgrid():
     class TestItem(BaseModel):
         a: ty.Optional[int]
@@ -594,13 +594,14 @@ def test_get_xlgrid():
 
     data = [dict(a=2, b="b", c=None)]
     from xlsxdatagrid.xlsxdatagrid import XlGrid, coerce_data, coerce_schema, get_xlgrid
-    
+
     gridschema = coerce_schema(TestGrid)
     griddata = coerce_data(data)
     xlgrid = get_xlgrid(gridschema, griddata)
-    
+
     assert isinstance(xlgrid, XlGrid)
     print("done")
+
 
 def test_write_grid():
     class TestItem(BaseModel):
@@ -619,13 +620,16 @@ def test_write_grid():
         get_xlgrid,
         write_grid,
     )
+
     gridschema = coerce_schema(TestGrid)
     griddata = coerce_data(data)
     xlgrid = get_xlgrid(gridschema, griddata)
     c.PATH_WRITE_GRID.unlink(missing_ok=True)
-    workbook = xw.Workbook(str(c.PATH_WRITE_GRID)) 
-    worksheet = write_grid(workbook, xlgrid=xlgrid, gridschema=gridschema, data=griddata)
-    
+    workbook = xw.Workbook(str(c.PATH_WRITE_GRID))
+    worksheet = write_grid(
+        workbook, xlgrid=xlgrid, gridschema=gridschema, data=griddata
+    )
+
     assert isinstance(worksheet, xw.worksheet.Worksheet)
     workbook.close()
     assert c.PATH_WRITE_GRID.is_file()

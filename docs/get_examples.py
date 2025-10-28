@@ -22,12 +22,13 @@ def copy_dir(source: Path, dest: Path):
         else:
             shutil.copy2(item, target)
 
+
 # Paths
 root = Path(__file__).resolve().parent.parent
 source_examples = root / "tests/examples"
 source_xl = root / "tests/xl"
 dest_examples = Path(__file__).resolve().parent / "examples"
-dest_xl = Path(__file__).resolve().parent / "xl"  
+dest_xl = Path(__file__).resolve().parent / "xl"
 
 # Sync examples folder
 print(f"Syncing {source_examples} → {dest_examples}")

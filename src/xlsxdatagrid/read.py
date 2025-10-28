@@ -4,17 +4,17 @@ import importlib.util
 import json
 import sys
 import typing as ty
-from datetime import timezone, time, date, datetime, timedelta
+from datetime import date, datetime, time, timedelta, timezone
+from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from io import StringIO
 
+from casefy import snakecase
 from datamodel_code_generator import DataModelType, InputFileType, generate
 from pydantic import AwareDatetime, BaseModel, ValidationError
 
 # 3rd party
 from python_calamine import CalamineSheet, CalamineWorkbook
-from casefy import snakecase
 
 # local
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData

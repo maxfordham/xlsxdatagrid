@@ -10,7 +10,7 @@ from xlsxdatagrid.read import (
     read_csv_string,
     read_csv_string_with_metadata,
     read_excel,
-    read_excel_with_model
+    read_excel_with_model,
 )
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 
@@ -153,11 +153,14 @@ name	a_int	a_constrainedint	b_float	c_str	c_constrainedstr	d_enum	e_bool	f_date	
 
     model = DataTypesArrayTransposed
     data_string = _as_delimited(string, delimiter)
-    data, errors = read_csv_string(data_string, True, False, header_depth=3, model=model, delimiter=delimiter)
-    
+    data, errors = read_csv_string(
+        data_string, True, False, header_depth=3, model=model, delimiter=delimiter
+    )
+
     assert isinstance(data, list)
     assert len(data) == 3
     print("done")
+
 
 @pytest.mark.parametrize("delimiter", ["\t", ","], ids=["tsv", "csv"])
 def test_read_csv_string_transposed(delimiter):
@@ -178,12 +181,15 @@ numeric	B Calcfloat	b_calcfloat	1.5	5	10.5
 
     model = DataTypesArrayTransposed
     data_string = _as_delimited(string, delimiter)
-    data, errors = read_csv_string(data_string, False, True, header_depth=3, model=model, delimiter=delimiter)
-    
+    data, errors = read_csv_string(
+        data_string, False, True, header_depth=3, model=model, delimiter=delimiter
+    )
+
     assert isinstance(data, list)
     assert len(data) == 3
     print("done")
-    
+
+
 @pytest.mark.parametrize("delimiter", ["\t", ","], ids=["tsv", "csv"])
 def test_read_csv_string_with_metadata(delimiter):
     string = """#Title=TestArray - HeaderDepth=3 - IsTransposed=False - DateTime=2025-10-22 15:15:55.981465 - DatamodelUrl=None
@@ -196,12 +202,15 @@ name	a_int	a_constrainedint	b_float	c_str	c_constrainedstr	d_enum	e_bool	f_date	
 	3	3	3.5	bluey	string	blue	FALSE	2025-10-22	2025-10-22T15:15:56+00:00	15:15:56+00:00	PT2H33M03S	10.5"""
 
     data_string = _as_delimited(string, delimiter)
-    obj, metadata = read_csv_string_with_metadata(data_string, get_datamodel=get_datamodel, delimiter=delimiter)
-    
+    obj, metadata = read_csv_string_with_metadata(
+        data_string, get_datamodel=get_datamodel, delimiter=delimiter
+    )
+
     assert isinstance(obj, list)
     assert len(obj) == 3
     print("done")
-    
+
+
 @pytest.mark.parametrize("delimiter", ["\t", ","], ids=["tsv", "csv"])
 def test_read_csv_string_with_metadata_transposed(delimiter):
     string = """#Title=TestArrayTransposed - HeaderDepth=3 - IsTransposed=True - DateTime=2025-10-22 15:42:29.557047 - DatamodelUrl=None
@@ -221,11 +230,14 @@ datetime	I Duration	i_duration	PT2H33M03S	PT2H33M03S	PT2H33M03S
 numeric	B Calcfloat	b_calcfloat	1.5	5	10.5"""
 
     data_string = _as_delimited(string, delimiter)
-    obj, metadata = read_csv_string_with_metadata(data_string, get_datamodel=get_datamodel, delimiter=delimiter)
-    
+    obj, metadata = read_csv_string_with_metadata(
+        data_string, get_datamodel=get_datamodel, delimiter=delimiter
+    )
+
     assert isinstance(obj, list)
     assert len(obj) == 3
     print("done")
+
 
 def get_raw_jsonschema(metadata: DataGridMetaData) -> dict:
     return json.loads(PATH_JSONSCHEMA_RAW.read_text())

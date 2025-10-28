@@ -1,10 +1,18 @@
-import io
 import csv
+import io
 import pathlib
 import typing as ty
+from datetime import date, datetime
+
 from pydantic import BaseModel
-from xlsxdatagrid.xlsxdatagrid import DataGridSchema, coerce_schema, generate_metadata_string, from_pydantic_object
-from datetime import datetime, date
+
+from xlsxdatagrid.xlsxdatagrid import (
+    DataGridSchema,
+    coerce_schema,
+    from_pydantic_object,
+    generate_metadata_string,
+)
+
 
 def csv_from_string(
     csv_string: str,
