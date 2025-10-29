@@ -61,14 +61,11 @@ def process_data(
     is_transposed: bool = False,
     header_depth: int = 1,
     empty_string_to_none=True,
-    remove_header_titles: bool = True,
 ) -> list[dict]:
     if is_transposed:
         data = list(map(list, zip(*data)))
 
     header_names = [d[0] for d in data[0:header_depth]]
-    if remove_header_titles and not is_transposed:
-        data = [d[1:] for d in data]
 
     if empty_string_to_none:
         data = [[_replace_empty_with_none(v) for v in row] for row in data]
@@ -87,7 +84,6 @@ def process_data_with_metadata(
     get_datamodel: ty.Optional[
         ty.Callable[[DataGridMetaData], ty.Type[BaseModel]]
     ] = None,
-    remove_header_titles: bool = True,
 ) -> tuple[list[dict], DataGridMetaData]:
     metadata = read_metadata(data[0][0])
     data_without_comments = drop_leading_comments(data)
@@ -96,7 +92,6 @@ def process_data_with_metadata(
         metadata.is_transposed,
         metadata.header_depth,
         True,
-        remove_header_titles,
     )
     processed_metadata = process_metadata(metadata, data)
     json_schema = (
@@ -195,25 +190,23 @@ def read_excel_from_metadata(
     get_datamodel: ty.Optional[
         ty.Callable[[DataGridMetaData], ty.Type[BaseModel]]
     ] = None,
-    remove_header_titles: bool = True,
 ):
     workbook = CalamineWorkbook.from_path(path)
     sheet = workbook.sheet_names[0]
     worksheet = workbook.get_sheet_by_name(sheet)
     data = get_list_of_list_from_worksheet(worksheet)
-    return process_data_with_metadata(data, get_datamodel, remove_header_titles)
+    return process_data_with_metadata(data, get_datamodel)
 
 
 def read_list_of_lists(
     data: list[list[int | float | str | bool | time | date | datetime | timedelta],],
-    remove_header_titles: bool = True,
     is_transposed: bool = False,
     header_depth: int = 1,
     model: BaseModel | None = None,
 ) -> list[dict]:
     data = drop_leading_comments(data)
     processed_data = process_data(
-        data, is_transposed, header_depth, True, remove_header_titles
+        data, is_transposed, header_depth, True
     )
     try:
         validated_data = pydantic_validate_data(processed_data, model)
@@ -225,7 +218,6 @@ def read_list_of_lists(
 
 def read_excel(
     path,
-    remove_header_titles: bool = True,
     is_transposed: bool = False,
     header_depth: int = 1,
     model: BaseModel | None = None,
@@ -235,13 +227,12 @@ def read_excel(
     worksheet = workbook.get_sheet_by_name(sheet)
     data = get_list_of_list_from_worksheet(worksheet)
     return read_list_of_lists(
-        data, remove_header_titles, is_transposed, header_depth, model
+        data, is_transposed, header_depth, model
     )
 
 
 def read_csv_string(
     csv_string: str,
-    remove_header_titles: bool = True,
     is_transposed: bool = False,
     header_depth: int = 1,
     model: BaseModel | None = None,
@@ -251,7 +242,6 @@ def read_csv_string(
 
     Args:
         csv_string (str): A csv string (could be a tsv string if delimiter is set to "\t").
-        remove_header_titles (bool, optional): Remove the header lines. Defaults to True.
         is_transposed (bool, optional): Configure whether the csv string is transposed or not. Defaults to False.
         header_depth (int, optional): The header depth in the csv string. Defaults to 1.
         model (BaseModel | None, optional): The pydantic model. Defaults to None.
@@ -264,7 +254,7 @@ def read_csv_string(
 
     data = get_list_of_list_from_string(csv_string, delimiter=delimiter)
     return read_list_of_lists(
-        data, remove_header_titles, is_transposed, header_depth, model
+        data, is_transposed, header_depth, model
     )
 
 
@@ -274,7 +264,6 @@ def read_csv_string_with_metadata(
         ty.Callable[[DataGridMetaData], ty.Type[BaseModel]]
     ] = None,
     delimiter: str = ",",
-    remove_header_titles: bool = True,
 ):
     data = get_list_of_list_from_string(csv_string, delimiter=delimiter)
-    return process_data_with_metadata(data, get_datamodel, remove_header_titles)
+    return process_data_with_metadata(data, get_datamodel)

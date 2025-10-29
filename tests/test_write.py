@@ -13,20 +13,16 @@ def _as_delimited(text: str, delimiter: str) -> str:
 
 
 @pytest.mark.parametrize(
-    "is_transposed, exclude_metadata, exclude_header_lines",
+    "is_transposed, exclude_metadata",
     [
-        (True, False, False),
-        (True, True, False),
-        (True, False, True),
-        (True, True, True),
-        (False, False, False),
-        (False, True, False),
-        (False, False, True),
-        (False, True, True),
+        (True, False),
+        (True, True),
+        (False, False),
+        (False, True),
     ],
 )
 def test_xdg_from_pydantic_object(
-    is_transposed: bool, exclude_metadata: bool, exclude_header_lines: bool
+    is_transposed: bool, exclude_metadata: bool
 ):
     data = [
         {
@@ -76,7 +72,7 @@ def test_xdg_from_pydantic_object(
     pydantic_obj = DataTypesArrayTransposed(data)
     fpth = (
         dest_dir
-        / f"test_from_pydantic_object-{is_transposed}-{exclude_metadata}-{exclude_header_lines}.xlsx"
+        / f"test_from_pydantic_object-{is_transposed}-{exclude_metadata}.xlsx"
     )
 
     out_fpth, _ = xdg_from_pydantic_object(
@@ -84,7 +80,6 @@ def test_xdg_from_pydantic_object(
         fpth=fpth,
         is_transposed=is_transposed,
         exclude_metadata=exclude_metadata,
-        exclude_header_lines=exclude_header_lines,
     )
 
     assert out_fpth.exists()

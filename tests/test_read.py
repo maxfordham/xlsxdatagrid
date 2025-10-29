@@ -142,19 +142,19 @@ def test_read_excel(write_table_test):  # noqa: F811
 
 @pytest.mark.parametrize("delimiter", ["\t", ","], ids=["tsv", "csv"])
 def test_read_csv_string(delimiter):
-    string = """#Title=DataTypesArray - HeaderDepth=3 - IsTransposed=False - DateTime=2025-10-23 15:52:38.027549 - DatamodelUrl=None												
-section	numeric	numeric	numeric	unicode	unicode	unicode	boolean	datetime	datetime	datetime	datetime	numeric
-title	A Int	A Constrainedint	B Float	C Str	C Constrainedstr	MyColor	E Bool	F Date	G Datetime	H Time	I Duration	B Calcfloat
-name	a_int	a_constrainedint	b_float	c_str	c_constrainedstr	d_enum	e_bool	f_date	g_datetime	h_time	i_duration	b_calcfloat
-	1	3	1.5	string	string	green	TRUE	2025-10-23	2025-10-23T15:52:38+00:00	15:52:38+00:00	PT2H33M03S	1.5
-	2	3	2.5	asdf	string	green	TRUE	2025-10-23	2025-10-23T15:52:38+00:00	15:52:38+00:00	PT2H33M03S	5
-	3	3	3.5	bluey	string	blue	FALSE	2025-10-23	2025-10-23T15:52:38+00:00	15:52:38+00:00	PT2H33M03S	10.5
+    string = """#Title=TestArray - HeaderDepth=3 - IsTransposed=False - DateTime=2025-10-29 11:07:21.014106 - DatamodelUrl=None											
+numeric	numeric	numeric	unicode	unicode	unicode	boolean	datetime	datetime	datetime	datetime	numeric
+A Int	A Constrainedint	B Float	C Str	C Constrainedstr	MyColor	E Bool	F Date	G Datetime	H Time	I Duration	B Calcfloat
+a_int	a_constrainedint	b_float	c_str	c_constrainedstr	d_enum	e_bool	f_date	g_datetime	h_time	i_duration	b_calcfloat
+1	3	1.5	string	string	green	TRUE	2025-10-29	2025-10-29T11:07:19+00:00	11:07:19+00:00	PT2H33M03S	1.5
+2	3	2.5	asdf	string	green	TRUE	2025-10-29	2025-10-29T11:07:19+00:00	11:07:19+00:00	PT2H33M03S	5
+3	3	3.5	bluey	string	blue	FALSE	2025-10-29	2025-10-29T11:07:19+00:00	11:07:19+00:00	PT2H33M03S	10.5
 """
 
     model = DataTypesArrayTransposed
     data_string = _as_delimited(string, delimiter)
     data, errors = read_csv_string(
-        data_string, True, False, header_depth=3, model=model, delimiter=delimiter
+        data_string, False, header_depth=3, model=model, delimiter=delimiter
     )
 
     assert isinstance(data, list)
@@ -182,7 +182,7 @@ numeric	B Calcfloat	b_calcfloat	1.5	5	10.5
     model = DataTypesArrayTransposed
     data_string = _as_delimited(string, delimiter)
     data, errors = read_csv_string(
-        data_string, False, True, header_depth=3, model=model, delimiter=delimiter
+        data_string, True, header_depth=3, model=model, delimiter=delimiter
     )
 
     assert isinstance(data, list)
