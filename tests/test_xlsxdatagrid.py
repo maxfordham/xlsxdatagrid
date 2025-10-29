@@ -32,10 +32,10 @@ from xlsxdatagrid.xlsxdatagrid import (
     convert_dict_arrays_to_list_records,
     convert_list_records_to_dict_arrays,
     convert_records_to_datagrid_schema,
-    xdg_from_pydantic_object,
-    xdg_from_pydantic_objects,
     wb_from_dataframe,
     wb_from_dataframes,
+    xdg_from_pydantic_object,
+    xdg_from_pydantic_objects,
 )
 
 from . import constants as c

@@ -3,14 +3,16 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta
 from enum import Enum
 from typing import List, Literal, Optional
-from typing_extensions import Annotated
+
 from pydantic import BaseModel, ConfigDict, Field, RootModel, StringConstraints
+from typing_extensions import Annotated
 
 
 class MyColor(str, Enum):
-    red = 'red'
-    green = 'green'
-    blue = 'blue'
+    red = "red"
+    green = "green"
+    blue = "blue"
+
 
 class DataTypesArrayTransposedItem(BaseModel):
     a_constrainedint: Annotated[int, Field(ge=1, le=10)] = Field(
@@ -33,12 +35,14 @@ class DataTypesArrayTransposedItem(BaseModel):
         json_schema_extra=dict(section="numeric"),
     )
 
-    c_constrainedstr: Annotated[str, StringConstraints(min_length=0, max_length=20)] = Field(
-        "string",
-        title="C Constrainedstr",
-        json_schema_extra=dict(
-            section="unicode",
-        ),
+    c_constrainedstr: Annotated[str, StringConstraints(min_length=0, max_length=20)] = (
+        Field(
+            "string",
+            title="C Constrainedstr",
+            json_schema_extra=dict(
+                section="unicode",
+            ),
+        )
     )
 
     c_str: Optional[str] = Field(

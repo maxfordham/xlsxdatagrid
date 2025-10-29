@@ -16,23 +16,23 @@ etc.
 
 from xlsxdatagrid.read import (
     read_csv_string,
+    read_excel,
     # read_csv_string_from_metadata,
     read_excel_from_metadata,
-    read_excel,
 )
 from xlsxdatagrid.xlsxdatagrid import (
-    xdg_from_dataframe,
-    xdg_from_dataframes,
-    xdg_from_json,
-    xdg_from_jsons,
-    xdg_from_pydantic_object,
-    xdg_from_pydantic_objects,
     # wb_from_pydantic_object,
     # wb_from_pydantic_objects,
     wb_from_dataframe,
     wb_from_dataframes,
     wb_from_json,
     wb_from_jsons,
+    xdg_from_dataframe,
+    xdg_from_dataframes,
+    xdg_from_json,
+    xdg_from_jsons,
+    xdg_from_pydantic_object,
+    xdg_from_pydantic_objects,
 )
 
 __all__ = [
@@ -51,5 +51,5 @@ __all__ = [
     "csv_from_string",
     "read_excel",
 ]
-from_pydantic_object = xdg_from_pydantic_object # TODO: delete
-from_pydantic_objects = xdg_from_pydantic_objects # TODO: delete
+from_pydantic_object = xdg_from_pydantic_object  # TODO: delete
+from_pydantic_objects = xdg_from_pydantic_objects  # TODO: delete

@@ -9,8 +9,8 @@ from xlsxdatagrid.read import (
     pydantic_model_from_json_schema,
     read_csv_string,
     read_csv_string_with_metadata,
-    read_excel_from_metadata,
     read_excel,
+    read_excel_from_metadata,
 )
 from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 

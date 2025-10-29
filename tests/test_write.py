@@ -21,9 +21,7 @@ def _as_delimited(text: str, delimiter: str) -> str:
         (False, True),
     ],
 )
-def test_xdg_from_pydantic_object(
-    is_transposed: bool, exclude_metadata: bool
-):
+def test_xdg_from_pydantic_object(is_transposed: bool, exclude_metadata: bool):
     data = [
         {
             "a_constrainedint": 3,
@@ -71,8 +69,7 @@ def test_xdg_from_pydantic_object(
 
     pydantic_obj = DataTypesArrayTransposed(data)
     fpth = (
-        dest_dir
-        / f"test_from_pydantic_object-{is_transposed}-{exclude_metadata}.xlsx"
+        dest_dir / f"test_from_pydantic_object-{is_transposed}-{exclude_metadata}.xlsx"
     )
 
     out_fpth, _ = xdg_from_pydantic_object(
@@ -83,14 +80,14 @@ def test_xdg_from_pydantic_object(
     )
 
     assert out_fpth.exists()
-    
+
     data, errors = read_excel(
         out_fpth,
         is_transposed=is_transposed,
         header_depth=3,
         model=DataTypesArrayTransposed,
     )
-    
+
     assert not errors
     assert isinstance(data, list)
     assert len(data) == 3

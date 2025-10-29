@@ -205,9 +205,7 @@ def read_list_of_lists(
     model: BaseModel | None = None,
 ) -> list[dict]:
     data = drop_leading_comments(data)
-    processed_data = process_data(
-        data, is_transposed, header_depth, True
-    )
+    processed_data = process_data(data, is_transposed, header_depth, True)
     try:
         validated_data = pydantic_validate_data(processed_data, model)
         return validated_data, []
@@ -226,9 +224,7 @@ def read_excel(
     sheet = workbook.sheet_names[0]
     worksheet = workbook.get_sheet_by_name(sheet)
     data = get_list_of_list_from_worksheet(worksheet)
-    return read_list_of_lists(
-        data, is_transposed, header_depth, model
-    )
+    return read_list_of_lists(data, is_transposed, header_depth, model)
 
 
 def read_csv_string(
@@ -253,9 +249,7 @@ def read_csv_string(
     """
 
     data = get_list_of_list_from_string(csv_string, delimiter=delimiter)
-    return read_list_of_lists(
-        data, is_transposed, header_depth, model
-    )
+    return read_list_of_lists(data, is_transposed, header_depth, model)
 
 
 def read_csv_string_with_metadata(
