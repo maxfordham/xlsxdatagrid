@@ -89,6 +89,6 @@
     "items": {
         "$ref": "#/$defs/Test"
     },
-    "title": "TestArray",
+    "title": "ExampleArray",
     "type": "array"
 }

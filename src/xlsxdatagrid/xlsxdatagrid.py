@@ -309,21 +309,21 @@ def get_xl_constraints(f: FieldSchema):  # TODO: write text for this
 
 class DataGridMetaData(BaseModel):
     model_config = ConfigDict(exclude_none=True)
-    title: str = Field(alias_choices=AliasChoices("title", "Title"))
+    title: str = Field(validation_alias=AliasChoices("title", "Title"))
     name: ty.Optional[str] = Field(
-        None, alias_choices=AliasChoices("template_name", "name")
+        None, validation_alias=AliasChoices("template_name", "name")
     )
     is_transposed: bool = False  # TODO: rename -> display_transposed
     header_depth: int = Field(1, validate_default=True)
     # include_header_titles: bool = True  # TODO
     datamodel_url: ty.Optional[HttpUrl] = Field(
-        None, alias_choices=AliasChoices("datamodel_url", "DatamodelUrl")
+        None, validation_alias=AliasChoices("datamodel_url", "DatamodelUrl")
     )
     datamodel_path: ty.Optional[pathlib.Path] = Field(
-        None, alias_choices=AliasChoices("datamodel_path", "DatamodelPath")
+        None, validation_alias=AliasChoices("datamodel_path", "DatamodelPath")
     )  # TODO: add as an option
     datamodel_importstr: ty.Optional[ImportString] = Field(
-        None, alias_choices=AliasChoices("datamodel_importstr", "DatamodelImportstr")
+        None, validation_alias=AliasChoices("datamodel_importstr", "DatamodelImportstr")
     )  # TODO: add as an option. preferred when present.
     metadata_fstring: str = Field(
         METADATA_FSTRING
@@ -465,7 +465,6 @@ def get_xlgrid(
     gridschema: DataGridSchema,
     data: DataGridData,
     exclude_metadata: bool = False,
-    exclude_header_lines: bool = False,
 ) -> XlGrid:
     data = data.root
     header_sections = ["section", "category"]
@@ -505,8 +504,6 @@ def get_xlgrid(
 
     if is_t:
         x += 1
-    else:
-        y += 1 if not exclude_header_lines else 0
     # ^ leave room for the header names
 
     x += 1 if not exclude_metadata else 0
@@ -768,7 +765,6 @@ def write_grid(
     xlgrid: XlGrid,
     gridschema: DataGridSchema,
     data: DataGridData,
-    exclude_header_lines: bool = False,
     exclude_metadata: bool = False,
 ) -> xw.worksheet.Worksheet:
     data = data.root
@@ -829,11 +825,10 @@ def write_grid(
     formula_columns = []
     if gridschema.is_transposed:  # transposed - with headers
         columns = [{"header": c} for c in column_labels]
-        if exclude_header_lines:
-            for idx in range(0, min(header_depth, len(columns))):
-                header_value = columns[idx]["header"]
-                if isinstance(header_value, str):
-                    columns[idx]["header"] = f"#{header_value}"
+        for idx in range(0, min(header_depth, len(columns))):
+            header_value = columns[idx]["header"]
+            if isinstance(header_value, str):
+                columns[idx]["header"] = f"#{header_value}"
 
         options = dict(
             style="Table Style Light 1",
@@ -914,12 +909,10 @@ def write_grid(
     x, y = xlgrid.xy
     x += 1 if not exclude_metadata else 0  # for metadata row
     label_values = column_labels[0:header_depth]
-    if gridschema.is_transposed and exclude_header_lines:
+    if gridschema.is_transposed:
         label_values = [
             f"#{label}" if isinstance(label, str) else label for label in label_values
         ]
-    if not (exclude_header_lines and not gridschema.is_transposed):
-        write_array(*(x, y), label_values, header_label_cell_format)
     if gridschema.is_transposed:
         # set empty table headers to be white
         y += header_depth
@@ -947,7 +940,6 @@ def write_sheet(
     workbook: xw.Workbook,
     data: list[dict],
     gridschema: ty.Union[dict, DataGridSchema, BaseModel, ty.Type[BaseModel]],
-    exclude_header_lines: bool = False,
     exclude_metadata: bool = False,
 ) -> tuple[xw.worksheet.Worksheet, XlTableWriter]:
     gridschema = coerce_schema(gridschema)
@@ -956,14 +948,12 @@ def write_sheet(
         gridschema,
         griddata,
         exclude_metadata=exclude_metadata,
-        exclude_header_lines=exclude_header_lines,
     )
     wsheet = write_grid(
         workbook,
         xlgrid,
         gridschema,
         griddata,
-        exclude_header_lines=exclude_header_lines,
         exclude_metadata=exclude_metadata,
     )
 
@@ -991,7 +981,6 @@ def wb_from_json(
     data: list[dict],
     schema: dict,
     fpth: ty.Optional[pathlib.Path] = None,
-    exclude_header_lines: bool = False,
     exclude_metadata: bool = False,
 ) -> tuple[xw.Workbook, XlTableWriter, xw.worksheet.Worksheet]:
     if fpth is None:
@@ -1001,7 +990,6 @@ def wb_from_json(
         workbook,
         data=data,
         gridschema=schema,
-        exclude_header_lines=exclude_header_lines,
         exclude_metadata=exclude_metadata,
     )
     return workbook, xl_tbl, worksheet
@@ -1023,7 +1011,6 @@ def xdg_from_json(
     schema: ty.Union[dict, DataGridSchema, BaseModel],
     fpth: ty.Optional[pathlib.Path] = None,
     is_transposed: ty.Optional[bool] = None,
-    exclude_header_lines: bool = False,
     exclude_metadata: bool = False,
 ):
     gridschema = coerce_schema(schema)
@@ -1035,7 +1022,6 @@ def xdg_from_json(
         data,
         gridschema,
         fpth=fpth,
-        exclude_header_lines=exclude_header_lines,
         exclude_metadata=exclude_metadata,
     )
     workbook.close()
@@ -1143,7 +1129,6 @@ def xdg_from_pydantic_object(
     pydantic_object: ty.Type[BaseModel],
     fpth: pathlib.Path = None,
     is_transposed: ty.Optional[bool] = None,
-    exclude_header_lines: bool = False,
     exclude_metadata: bool = False,
 ) -> pathlib.Path:
     data, schema = get_data_and_dgschema(pydantic_object)
@@ -1152,7 +1137,6 @@ def xdg_from_pydantic_object(
         schema,
         fpth=fpth,
         is_transposed=is_transposed,
-        exclude_header_lines=exclude_header_lines,
         exclude_metadata=exclude_metadata,
     )
 

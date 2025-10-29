@@ -32,10 +32,10 @@ from xlsxdatagrid.xlsxdatagrid import (
     convert_dict_arrays_to_list_records,
     convert_list_records_to_dict_arrays,
     convert_records_to_datagrid_schema,
-    xdg_from_pydantic_object,
-    xdg_from_pydantic_objects,
     wb_from_dataframe,
     wb_from_dataframes,
+    xdg_from_pydantic_object,
+    xdg_from_pydantic_objects,
 )
 
 from . import constants as c
@@ -47,7 +47,7 @@ class MyColor(StrEnum):
     BLUE = "blue"
 
 
-class Test(BaseModel):
+class Example(BaseModel):
     a_int: int = Field(1, json_schema_extra=dict(section="numeric"))
     a_constrainedint: Annotated[int, Field(ge=0, le=10)] = Field(
         3, json_schema_extra=dict(section="numeric")
@@ -82,7 +82,7 @@ class Test(BaseModel):
         return self.a_int * self.b_float
 
 
-class Test1(BaseModel):
+class Example1(BaseModel):
     a_int: int = Field(1, json_schema_extra=dict(section="numeric"))
     a_constrainedint: Annotated[int, Field(ge=0, le=10)] = Field(
         3, json_schema_extra=dict(section="numeric")
@@ -98,25 +98,25 @@ class Test1(BaseModel):
     d_enum: MyColor = Field(json_schema_extra=dict(section="unicode"))
 
 
-class TestArray(RootModel):
+class ExampleArray(RootModel):
     model_config = ConfigDict(
         json_schema_extra=dict(
             datagrid_index_name=("section", "title", "name"), is_transposed=False
         )
     )
-    root: list[Test]
+    root: list[Example]
 
 
-class TestArray1(RootModel):
+class ExampleArray1(RootModel):
     model_config = ConfigDict(
         json_schema_extra=dict(
             datagrid_index_name=("section", "title", "name"), is_transposed=False
         )
     )
-    root: list[Test1]
+    root: list[Example1]
 
 
-class TestArrayTransposed(TestArray):
+class ExampleArrayTransposed(ExampleArray):
     model_config = ConfigDict(
         json_schema_extra=dict(
             datagrid_index_name=("section", "title", "name"), is_transposed=True
@@ -131,7 +131,7 @@ TEST_ARRAY_SCHEMA = {
             "title": "MyColor",
             "type": "string",
         },
-        "Test": {
+        "Example": {
             "properties": {
                 "a_constrainedint": {
                     "default": 3,
@@ -214,14 +214,14 @@ TEST_ARRAY_SCHEMA = {
                 },
             },
             "required": ["d_enum", "b_calcfloat"],
-            "title": "Test",
+            "title": "Example",
             "type": "object",
         },
     },
     "datagrid_index_name": ("section", "title", "name"),
     "is_transposed": False,
-    "items": {"$ref": "#/$defs/Test"},
-    "title": "TestArrayTransposed",
+    "items": {"$ref": "#/$defs/Example"},
+    "title": "ExampleArrayTransposed",
     "type": "array",
 }
 
@@ -249,20 +249,20 @@ ARRAY_DATA = {
     "b_calcfloat": [1.5, 5.0, 10.5],
 }
 
-ARRAY_DATA1 = {k: v * 2 for k, v in ARRAY_DATA.items() if k in Test1.model_fields}
+ARRAY_DATA1 = {k: v * 2 for k, v in ARRAY_DATA.items() if k in Example1.model_fields}
 
 
 def get_test_array(is_transposed=False):
     t1, t2, t3 = (
-        Test(d_enum=MyColor.GREEN),
-        Test(a_int=2, b_float=2.5, c_str="asdf", d_enum=MyColor.GREEN),
-        Test(a_int=3, b_float=3.5, c_str="bluey", d_enum=MyColor.BLUE, e_bool=False),
+        Example(d_enum=MyColor.GREEN),
+        Example(a_int=2, b_float=2.5, c_str="asdf", d_enum=MyColor.GREEN),
+        Example(a_int=3, b_float=3.5, c_str="bluey", d_enum=MyColor.BLUE, e_bool=False),
     )
 
     if is_transposed:
-        return TestArrayTransposed([t1, t2, t3])
+        return ExampleArrayTransposed([t1, t2, t3])
     else:
-        return TestArray([t1, t2, t3])
+        return ExampleArray([t1, t2, t3])
 
 
 def get_pydantic_test_inputs(is_transposed=False):
@@ -294,8 +294,8 @@ def test_pydantic_objects_write_tables():
     fpth, pyd_obj = get_pydantic_test_inputs(is_transposed=False)
     fpth = c.PATH_XL_MANY_SHEETS
     fpth.unlink(missing_ok=True)
-    pyd_obj = TestArray(convert_dict_arrays_to_list_records(ARRAY_DATA))
-    pyd_obj1 = TestArray1(convert_dict_arrays_to_list_records(ARRAY_DATA1))
+    pyd_obj = ExampleArray(convert_dict_arrays_to_list_records(ARRAY_DATA))
+    pyd_obj1 = ExampleArray1(convert_dict_arrays_to_list_records(ARRAY_DATA1))
 
     fpth = xdg_from_pydantic_objects([pyd_obj, pyd_obj1], fpth)
     assert fpth.is_file()
@@ -382,10 +382,10 @@ def test_IsInstance():
 
 
 def test_enum_field_schema():
-    class Test(BaseModel):
+    class Example(BaseModel):
         m_color: Annotated[MyColor, Field(json_schema_extra={"section": "unicode"})]
 
-    item = replace_refs(Test.model_json_schema(), merge_props=True)
+    item = replace_refs(Example.model_json_schema(), merge_props=True)
     name = "m_color"
     fschema = item.get("properties").get(name) | {"name": name}
 
@@ -427,9 +427,9 @@ def test_coerce_schema():
         DataGridSchema(**convert_records_to_datagrid_schema(schema))
     ) == IsInstance(DataGridSchema, only_direct_instance=True)
 
-    assert coerce_schema(TestArrayTransposed) == IsInstance(DataGridSchema)
+    assert coerce_schema(ExampleArrayTransposed) == IsInstance(DataGridSchema)
 
-    assert coerce_schema(TestArray) == IsInstance(DataGridSchema)
+    assert coerce_schema(ExampleArray) == IsInstance(DataGridSchema)
 
 
 def test_coerce_data():
@@ -541,13 +541,13 @@ def from_json_with_null():
     fpth = c.PATH_FROM_JSON
     fpth.unlink(missing_ok=True)
 
-    class TestItem(BaseModel):
+    class ExampleItem(BaseModel):
         a: ty.Optional[int]
         b: str
         c: ty.Optional[str]
 
-    class TestGrid(RootModel):
-        root: list[TestItem]
+    class ExampleGrid(RootModel):
+        root: list[ExampleItem]
 
     data = [
         {"a": 1, "b": "a", "c": None},
@@ -555,47 +555,47 @@ def from_json_with_null():
         {"a": 3, "b": "c", "c": "f"},
         {"a": None, "b": "d", "c": None},
     ]
-    xdg.xdg_from_json(data, schema=TestGrid, fpth=fpth)
-    return fpth, data, TestGrid
+    xdg.xdg_from_json(data, schema=ExampleGrid, fpth=fpth)
+    return fpth, data, ExampleGrid
 
 
 def test_from_json(from_json_with_null):
-    fpth, data, TestGrid = from_json_with_null
+    fpth, data, ExampleGrid = from_json_with_null
     assert fpth.is_file()
 
 
 @pytest.mark.parametrize("is_transposed", [True, False])
 def test_from_json_empty_data(is_transposed):
-    class TestItem(BaseModel):
+    class ExampleItem(BaseModel):
         a: ty.Optional[int]
         b: str
         c: ty.Optional[str]
 
-    class TestGrid(RootModel):
-        root: list[TestItem]
+    class ExampleGrid(RootModel):
+        root: list[ExampleItem]
 
     fpth = (
         c.PATH_FROM_JSON_EMPTY if is_transposed else c.PATH_FROM_JSON_EMPTY_TRANSPOSED
     )
 
     data = [dict(a=2, b="b", c=None)]
-    xdg.xdg_from_json(data, schema=TestGrid, fpth=fpth, is_transposed=is_transposed)
+    xdg.xdg_from_json(data, schema=ExampleGrid, fpth=fpth, is_transposed=is_transposed)
     assert fpth.is_file()
 
 
 def test_get_xlgrid():
-    class TestItem(BaseModel):
+    class ExampleItem(BaseModel):
         a: ty.Optional[int]
         b: str
         c: ty.Optional[str]
 
-    class TestGrid(RootModel):
-        root: list[TestItem]
+    class ExampleGrid(RootModel):
+        root: list[ExampleItem]
 
     data = [dict(a=2, b="b", c=None)]
     from xlsxdatagrid.xlsxdatagrid import XlGrid, coerce_data, coerce_schema, get_xlgrid
 
-    gridschema = coerce_schema(TestGrid)
+    gridschema = coerce_schema(ExampleGrid)
     griddata = coerce_data(data)
     xlgrid = get_xlgrid(gridschema, griddata)
 
@@ -604,13 +604,13 @@ def test_get_xlgrid():
 
 
 def test_write_grid():
-    class TestItem(BaseModel):
+    class ExampleItem(BaseModel):
         a: ty.Optional[int]
         b: str
         c: ty.Optional[str]
 
-    class TestGrid(RootModel):
-        root: list[TestItem]
+    class ExampleGrid(RootModel):
+        root: list[ExampleItem]
 
     data = [dict(a=2, b="b", c=None)] * 3
     from xlsxdatagrid.xlsxdatagrid import (
@@ -621,7 +621,7 @@ def test_write_grid():
         write_grid,
     )
 
-    gridschema = coerce_schema(TestGrid)
+    gridschema = coerce_schema(ExampleGrid)
     griddata = coerce_data(data)
     xlgrid = get_xlgrid(gridschema, griddata)
     c.PATH_WRITE_GRID.unlink(missing_ok=True)
