@@ -309,21 +309,21 @@ def get_xl_constraints(f: FieldSchema):  # TODO: write text for this
 
 class DataGridMetaData(BaseModel):
     model_config = ConfigDict(exclude_none=True)
-    title: str = Field(alias_choices=AliasChoices("title", "Title"))
+    title: str = Field(validation_alias=AliasChoices("title", "Title"))
     name: ty.Optional[str] = Field(
-        None, alias_choices=AliasChoices("template_name", "name")
+        None, validation_alias=AliasChoices("template_name", "name")
     )
     is_transposed: bool = False  # TODO: rename -> display_transposed
     header_depth: int = Field(1, validate_default=True)
     # include_header_titles: bool = True  # TODO
     datamodel_url: ty.Optional[HttpUrl] = Field(
-        None, alias_choices=AliasChoices("datamodel_url", "DatamodelUrl")
+        None, validation_alias=AliasChoices("datamodel_url", "DatamodelUrl")
     )
     datamodel_path: ty.Optional[pathlib.Path] = Field(
-        None, alias_choices=AliasChoices("datamodel_path", "DatamodelPath")
+        None, validation_alias=AliasChoices("datamodel_path", "DatamodelPath")
     )  # TODO: add as an option
     datamodel_importstr: ty.Optional[ImportString] = Field(
-        None, alias_choices=AliasChoices("datamodel_importstr", "DatamodelImportstr")
+        None, validation_alias=AliasChoices("datamodel_importstr", "DatamodelImportstr")
     )  # TODO: add as an option. preferred when present.
     metadata_fstring: str = Field(
         METADATA_FSTRING

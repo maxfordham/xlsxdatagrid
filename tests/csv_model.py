@@ -95,7 +95,7 @@ class DataTypesArrayTransposedItem(BaseModel):
 
 class DataTypesArrayTransposed(RootModel):
     model_config = ConfigDict(
-        title="TestArrayTransposed",
+        title="ExampleArrayTransposed",
         json_schema_extra=dict(
             datagrid_index_name=("section", "title", "name"),
         ),
