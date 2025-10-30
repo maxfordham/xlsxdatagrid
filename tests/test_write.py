@@ -91,3 +91,96 @@ def test_xdg_from_pydantic_object(is_transposed: bool, exclude_metadata: bool):
     assert not errors
     assert isinstance(data, list)
     assert len(data) == 3
+
+def test_optional_enum_write():
+    from enum import Enum
+    from typing import Optional
+    from pydantic import BaseModel, RootModel
+
+    class ColorEnum(str, Enum):
+        RED = "red"
+        GREEN = "green"
+        BLUE = "blue"
+
+    class ModelWithOptionalEnum(BaseModel):
+        color: Optional[ColorEnum]
+        value: int
+        
+    class ModelWithOptionalEnumList(RootModel):
+        root: list[ModelWithOptionalEnum]
+
+    data = [
+        {"color": "red", "value": 10},
+        {"color": "green", "value": 20},
+        {"color": "blue", "value": 30},
+        # {"color": None, "value": 40},
+    ]
+    
+    pydantic_object = ModelWithOptionalEnumList(data)
+
+    dest_dir = pathlib.Path("tests/xl/pydantic")
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    fpth = dest_dir / "test_optional_enum_write.xlsx"
+
+    out_fpth, _ = xdg_from_pydantic_object(
+        pydantic_object,
+        fpth=fpth,
+        is_transposed=False,
+        exclude_metadata=False,
+    )
+
+    assert out_fpth.exists()
+
+    read_data, errors = read_excel(
+        out_fpth,
+        is_transposed=False,
+        header_depth=1,
+        model=ModelWithOptionalEnumList,
+    )
+    
+def test_enum_write():
+    from enum import Enum
+    from pydantic import BaseModel, RootModel
+
+    class ColorEnum(str, Enum):
+        RED = "red"
+        GREEN = "green"
+        BLUE = "blue"
+
+    class ModelWithEnum(BaseModel):
+        color: ColorEnum
+        value: int
+        
+    class ModelWithEnumList(RootModel):
+        root: list[ModelWithEnum]
+
+    data = [
+        {"color": "red", "value": 10},
+        {"color": "green", "value": 20},
+        {"color": "blue", "value": 30},
+        # {"color": None, "value": 40},
+    ]
+
+    pydantic_object = ModelWithEnumList(data)
+
+    dest_dir = pathlib.Path("tests/xl/pydantic")
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    fpth = dest_dir / "test_enum_write.xlsx"
+
+    out_fpth, _ = xdg_from_pydantic_object(
+        pydantic_object,
+        fpth=fpth,
+        is_transposed=False,
+        exclude_metadata=False,
+    )
+
+    assert out_fpth.exists()
+
+    read_data, errors = read_excel(
+        out_fpth,
+        is_transposed=False,
+        header_depth=1,
+        model=ModelWithEnumList,
+    )

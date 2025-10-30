@@ -659,6 +659,15 @@ def flatten_anyOf(fields: list) -> list:
             types = list(set([f["type"] for f in field["anyOf"]]))
             if len(types) == 2:
                 field["type"] = field["anyOf"][0]["type"]
+                preferred = next(
+                    (opt for opt in field["anyOf"] if opt.get("type") != "null"),
+                    field["anyOf"][0],
+                )
+                field["type"] = preferred.get("type", field["anyOf"][0]["type"])
+                for key, value in preferred.items():
+                    if key == "type" and value == "null":
+                        continue
+                    field[key] = value
             if len(types) > 2:
                 logging.warning(
                     f"more than 2 types allowed ({types})... for {field['name']}"
@@ -1121,7 +1130,7 @@ def get_data_and_dgschema(
     pyd_obj: ty.Type[BaseModel],
 ) -> tuple[dict[str, list], dict]:
     schema = pyd_obj.model_json_schema(mode="serialization")
-    data = pyd_obj.model_dump(mode="json")
+    data = pyd_obj.model_dump(by_alias=True, mode="json") # https://github.com/koxudaxi/datamodel-code-generator/issues/2364
     return data, schema
 
 

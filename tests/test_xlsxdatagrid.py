@@ -36,6 +36,7 @@ from xlsxdatagrid.xlsxdatagrid import (
     wb_from_dataframes,
     xdg_from_pydantic_object,
     xdg_from_pydantic_objects,
+    flatten_anyOf,
 )
 
 from . import constants as c
@@ -633,3 +634,18 @@ def test_write_grid():
     assert isinstance(worksheet, xw.worksheet.Worksheet)
     workbook.close()
     assert c.PATH_WRITE_GRID.is_file()
+
+def test_flatten_anyOf():
+    fields_before = [
+        {
+            "anyOf": [{"enum": ["red", "green", "blue"], "title": "ColorEnum", "type": "string"}, {"type": "null"}],
+            "name": "color",
+        },
+        {"name": "value", "title": "Value", "type": "integer"},
+    ]
+    flattened_fields = flatten_anyOf(fields_before)
+    print(flattened_fields)
+    assert flattened_fields == [
+        {'enum': ['red', 'green', 'blue'], 'title': 'ColorEnum', 'type': 'string', 'name': 'color'},
+        {'name': 'value', 'title': 'Value', 'type': 'integer'}
+    ]
