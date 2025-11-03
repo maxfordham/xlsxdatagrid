@@ -32,11 +32,11 @@ from xlsxdatagrid.xlsxdatagrid import (
     convert_dict_arrays_to_list_records,
     convert_list_records_to_dict_arrays,
     convert_records_to_datagrid_schema,
+    flatten_anyOf,
     wb_from_dataframe,
     wb_from_dataframes,
     xdg_from_pydantic_object,
     xdg_from_pydantic_objects,
-    flatten_anyOf,
 )
 
 from . import constants as c
@@ -635,10 +635,18 @@ def test_write_grid():
     workbook.close()
     assert c.PATH_WRITE_GRID.is_file()
 
+
 def test_flatten_anyOf():
     fields_before = [
         {
-            "anyOf": [{"enum": ["red", "green", "blue"], "title": "ColorEnum", "type": "string"}, {"type": "null"}],
+            "anyOf": [
+                {
+                    "enum": ["red", "green", "blue"],
+                    "title": "ColorEnum",
+                    "type": "string",
+                },
+                {"type": "null"},
+            ],
             "name": "color",
         },
         {"name": "value", "title": "Value", "type": "integer"},
@@ -646,6 +654,11 @@ def test_flatten_anyOf():
     flattened_fields = flatten_anyOf(fields_before)
     print(flattened_fields)
     assert flattened_fields == [
-        {'enum': ['red', 'green', 'blue'], 'title': 'ColorEnum', 'type': 'string', 'name': 'color'},
-        {'name': 'value', 'title': 'Value', 'type': 'integer'}
+        {
+            "enum": ["red", "green", "blue"],
+            "title": "ColorEnum",
+            "type": "string",
+            "name": "color",
+        },
+        {"name": "value", "title": "Value", "type": "integer"},
     ]

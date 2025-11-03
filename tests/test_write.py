@@ -92,9 +92,11 @@ def test_xdg_from_pydantic_object(is_transposed: bool, exclude_metadata: bool):
     assert isinstance(data, list)
     assert len(data) == 3
 
+
 def test_optional_enum_write():
     from enum import Enum
     from typing import Optional
+
     from pydantic import BaseModel, RootModel
 
     class ColorEnum(str, Enum):
@@ -105,7 +107,7 @@ def test_optional_enum_write():
     class ModelWithOptionalEnum(BaseModel):
         color: Optional[ColorEnum]
         value: int
-        
+
     class ModelWithOptionalEnumList(RootModel):
         root: list[ModelWithOptionalEnum]
 
@@ -115,7 +117,7 @@ def test_optional_enum_write():
         {"color": "blue", "value": 30},
         # {"color": None, "value": 40},
     ]
-    
+
     pydantic_object = ModelWithOptionalEnumList(data)
 
     dest_dir = pathlib.Path("tests/xl/pydantic")
@@ -138,9 +140,11 @@ def test_optional_enum_write():
         header_depth=1,
         model=ModelWithOptionalEnumList,
     )
-    
+
+
 def test_enum_write():
     from enum import Enum
+
     from pydantic import BaseModel, RootModel
 
     class ColorEnum(str, Enum):
@@ -151,7 +155,7 @@ def test_enum_write():
     class ModelWithEnum(BaseModel):
         color: ColorEnum
         value: int
-        
+
     class ModelWithEnumList(RootModel):
         root: list[ModelWithEnum]
 

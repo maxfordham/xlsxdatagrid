@@ -297,6 +297,7 @@ def test_field_name_change():
     validated_model = test_model.model_validate({"Fruit": "apple"})
     assert validated_model.model_dump(by_alias=True, mode="json") == {"Fruit": "apple"}
 
+
 def test_transposed_string_processing_issue():
     model = DistributionBoard
     tsv_string = """Abbreviation	DB
@@ -310,5 +311,7 @@ OverallLength
 Symbol	
 TypeReference	1
 Voltage	"""
-    data, errors = read_csv_string(tsv_string, is_transposed=True, header_depth=1, model=model, delimiter="\t")
+    data, errors = read_csv_string(
+        tsv_string, is_transposed=True, header_depth=1, model=model, delimiter="\t"
+    )
     assert data != []

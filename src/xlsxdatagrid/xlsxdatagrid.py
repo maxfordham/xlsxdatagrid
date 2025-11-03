@@ -1130,7 +1130,9 @@ def get_data_and_dgschema(
     pyd_obj: ty.Type[BaseModel],
 ) -> tuple[dict[str, list], dict]:
     schema = pyd_obj.model_json_schema(mode="serialization")
-    data = pyd_obj.model_dump(by_alias=True, mode="json") # https://github.com/koxudaxi/datamodel-code-generator/issues/2364
+    data = pyd_obj.model_dump(
+        by_alias=True, mode="json"
+    )  # https://github.com/koxudaxi/datamodel-code-generator/issues/2364
     return data, schema
 
 
