@@ -168,7 +168,7 @@ def get_list_of_list_from_worksheet(worksheet: CalamineSheet) -> list[list]:
 def get_list_of_list_from_string(
     csv_string: str, delimiter: str = "\t"
 ) -> list[list[int | float | str | bool | time | date | datetime | timedelta],]:
-    csv_file = StringIO(csv_string.strip())
+    csv_file = StringIO(csv_string)
     reader = csv.reader(csv_file, delimiter=delimiter)
     data = [x for x in reader]
     return data

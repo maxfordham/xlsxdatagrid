@@ -16,6 +16,7 @@ from xlsxdatagrid.xlsxdatagrid import DataGridMetaData
 
 from .constants import PATH_JSONSCHEMA_RAW
 from .csv_model import DataTypesArrayTransposed
+from .edit_tsv_records_model import DistributionBoard
 from .test_xlsxdatagrid import (
     ExampleArray,
     ExampleArrayTransposed,
@@ -164,8 +165,7 @@ a_int	a_constrainedint	b_float	c_str	c_constrainedstr	d_enum	e_bool	f_date	g_dat
 
 @pytest.mark.parametrize("delimiter", ["\t", ","], ids=["tsv", "csv"])
 def test_read_csv_string_transposed(delimiter):
-    string = """type	title	name	row1	row2	row3
-numeric	A Int	a_int	1	2	3
+    string = """numeric	A Int	a_int	1	2	3
 numeric	A Constrainedint	a_constrainedint	3	3	3
 numeric	B Float	b_float	1.5	2.5	3.5
 unicode	C Str	c_str	string	asdf	bluey
@@ -296,3 +296,22 @@ def test_field_name_change():
     assert "Fruit" in test_model.model_fields["Fruit_1"].alias
     validated_model = test_model.model_validate({"Fruit": "apple"})
     assert validated_model.model_dump(by_alias=True, mode="json") == {"Fruit": "apple"}
+
+
+def test_transposed_string_processing_issue():
+    model = DistributionBoard
+    tsv_string = """Abbreviation	DB
+ClassificationUniclassProductNumber	Pr_60_70_22_22
+ClassificationUniclassSystemNumber	
+FunctionReference	
+Id	2
+ManufacturerWebsite	https://maxfordham.com/
+Notes	
+OverallLength	
+Symbol	
+TypeReference	1
+Voltage	"""
+    data, errors = read_csv_string(
+        tsv_string, is_transposed=True, header_depth=1, model=model, delimiter="\t"
+    )
+    assert data != []
