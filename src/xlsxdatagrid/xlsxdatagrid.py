@@ -824,7 +824,7 @@ def write_grid(
     # for k, v in xlgrid.format_arrays.items():
 
     # make table --------------------------
-    length = len(list(data.values())[0]) + len(gridschema.datagrid_index_name)
+    length = len(next(iter(data.values()), [])) + len(gridschema.datagrid_index_name)
 
     def get_name(n, header_depth):
         return f"Column{n}" if n >= header_depth else gridschema.datagrid_index_name[n]
@@ -883,7 +883,7 @@ def write_grid(
     for k, v in xlgrid.xy_arrays.items():
         if k not in formula_columns:
             # li = list(np.array(data[k]))
-            li = data[k]
+            li = data.get(k, '')
 
             if k in format_arrays:
                 write_array(*v, li, format_arrays[k])
