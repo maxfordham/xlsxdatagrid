@@ -419,8 +419,10 @@ def get_duration(d):
 
 class XlGrid(BaseModel):
     header_sections: list = ["section", "category"]  # used to colour code only
-    xy: tuple[int, int] = 0, 0  # row, col
-    xy_arrays: dict[str, tuple[int, int]] = {"a": (0, 0)}
+    xy: tuple[int, int] = Field((0, 0), description="coordinates of top-left of table")
+    xy_arrays: dict[str, tuple[int, int]] = Field(
+        {"a": (0, 0)}, description="coordinates of the first item in array"
+    )
     format_arrays: dict[str, str] = Field({})  # col-name: format
     comment_arrays: dict[str, str] = Field({})  # col-name: comment
     rng_arrays: dict[str, tuple[int, int, int, int]] = {"a": (0, 0, 0, 0)}
@@ -444,16 +446,29 @@ class XlGrid(BaseModel):
         2  # hidden by default
     )
     metadata: str = ""
-    # length: int = 0
-
-
-class XlTableWriter(XlGrid):
-    gridschema: DataGridSchema
-    data: dict[str, list]
+    data_array_length: int = 0
 
 
 class DataGridData(RootModel):
     root: dict[ty.Union[str, int, float], list]  # columnar data
+
+    @model_validator(mode="after")
+    def validate_list_lengths(self):
+        """
+        Ensure all lists in `data(root)` have the same length.
+        """
+        if self.root:
+            lengths = {len(v) for v in self.root.values() if isinstance(v, list)}
+            if len(lengths) > 1:
+                raise ValueError(
+                    f"All lists in `data(root)` must be the same length. Got lengths: {lengths}"
+                )
+        return self
+
+
+class XlTableWriter(XlGrid):
+    gridschema: DataGridSchema
+    data: DataGridData
 
 
 def generate_metadata_string(gridschema: DataGridSchema) -> str:
@@ -484,7 +499,9 @@ def get_xlgrid(
     x, y = start_coordinates
     hd = gridschema.header_depth  # header depth
     fd_nns = gridschema.field_names  # field names
-    length = len(data[fd_nns[0]]) - 1 if len(data) > 0 else 0  # length of data arrays
+    length = (
+        len(list(data.values())[0]) - 1 if len(data) > 0 else 0
+    )  # length of data arrays
     format_headers = hd * [None]
 
     di = {}
@@ -640,6 +657,7 @@ def get_xlgrid(
     di["conditional_formats"] = conditional_formats
     di["comment_arrays"] = {}
     di["hide_gridlines"] = 2  # hidden by default
+    di["data_array_length"] = len(list(data.values())[0])
 
     return XlGrid(**di)
 
@@ -824,15 +842,19 @@ def write_grid(
     # for k, v in xlgrid.format_arrays.items():
 
     # make table --------------------------
-    length = len(list(data.values())[0]) + len(gridschema.datagrid_index_name)
+    # if no data is passed continue to writing to excel with empty list
+    header_depth_plus_array_length = len(next(iter(data.values()), [])) + len(
+        gridschema.datagrid_index_name
+    )
 
     def get_name(n, header_depth):
         return f"Column{n}" if n >= header_depth else gridschema.datagrid_index_name[n]
 
-    column_labels = [get_name(n, header_depth) for n in range(0, length)]
-
     formula_columns = []
     if gridschema.is_transposed:  # transposed - with headers
+        column_labels = [
+            get_name(n, header_depth) for n in range(0, header_depth_plus_array_length)
+        ]
         columns = [{"header": c} for c in column_labels]
         for idx in range(0, min(header_depth, len(columns))):
             header_value = columns[idx]["header"]
@@ -882,8 +904,8 @@ def write_grid(
     # write arrays
     for k, v in xlgrid.xy_arrays.items():
         if k not in formula_columns:
-            # li = list(np.array(data[k]))
-            li = data[k]
+            # if no array data is passed for write nothing to excel in this col / row (as a placeholder to be completed in excel)
+            li = data.get(k, [None] * xlgrid.data_array_length)
 
             if k in format_arrays:
                 write_array(*v, li, format_arrays[k])
@@ -917,11 +939,6 @@ def write_grid(
     # write column labels
     x, y = xlgrid.xy
     x += 1 if not exclude_metadata else 0  # for metadata row
-    label_values = column_labels[0:header_depth]
-    if gridschema.is_transposed:
-        label_values = [
-            f"#{label}" if isinstance(label, str) else label for label in label_values
-        ]
     if gridschema.is_transposed:
         # set empty table headers to be white
         y += header_depth
