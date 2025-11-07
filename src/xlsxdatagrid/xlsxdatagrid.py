@@ -419,8 +419,10 @@ def get_duration(d):
 
 class XlGrid(BaseModel):
     header_sections: list = ["section", "category"]  # used to colour code only
-    xy: tuple[int, int] = Field( (0, 0), description="coordinates of top-left of table")
-    xy_arrays: dict[str, tuple[int, int]] = Field({"a": (0, 0)}, description="coordinates of the first item in array")
+    xy: tuple[int, int] = Field((0, 0), description="coordinates of top-left of table")
+    xy_arrays: dict[str, tuple[int, int]] = Field(
+        {"a": (0, 0)}, description="coordinates of the first item in array"
+    )
     format_arrays: dict[str, str] = Field({})  # col-name: format
     comment_arrays: dict[str, str] = Field({})  # col-name: comment
     rng_arrays: dict[str, tuple[int, int, int, int]] = {"a": (0, 0, 0, 0)}
@@ -446,8 +448,10 @@ class XlGrid(BaseModel):
     metadata: str = ""
     data_array_length: int = 0
 
+
 class DataGridData(RootModel):
     root: dict[ty.Union[str, int, float], list]  # columnar data
+
     @model_validator(mode="after")
     def validate_list_lengths(self):
         """
@@ -461,10 +465,10 @@ class DataGridData(RootModel):
                 )
         return self
 
+
 class XlTableWriter(XlGrid):
     gridschema: DataGridSchema
     data: DataGridData
-
 
 
 def generate_metadata_string(gridschema: DataGridSchema) -> str:
@@ -495,7 +499,9 @@ def get_xlgrid(
     x, y = start_coordinates
     hd = gridschema.header_depth  # header depth
     fd_nns = gridschema.field_names  # field names
-    length = len(list(data.values())[0]) - 1 if len(data) > 0 else 0  # length of data arrays
+    length = (
+        len(list(data.values())[0]) - 1 if len(data) > 0 else 0
+    )  # length of data arrays
     format_headers = hd * [None]
 
     di = {}
@@ -837,15 +843,18 @@ def write_grid(
 
     # make table --------------------------
     # if no data is passed continue to writing to excel with empty list
-    header_depth_plus_array_length = len(next(iter(data.values()), [])) + len(gridschema.datagrid_index_name)
+    header_depth_plus_array_length = len(next(iter(data.values()), [])) + len(
+        gridschema.datagrid_index_name
+    )
 
     def get_name(n, header_depth):
         return f"Column{n}" if n >= header_depth else gridschema.datagrid_index_name[n]
 
-
     formula_columns = []
     if gridschema.is_transposed:  # transposed - with headers
-        column_labels = [get_name(n, header_depth) for n in range(0, header_depth_plus_array_length)]
+        column_labels = [
+            get_name(n, header_depth) for n in range(0, header_depth_plus_array_length)
+        ]
         columns = [{"header": c} for c in column_labels]
         for idx in range(0, min(header_depth, len(columns))):
             header_value = columns[idx]["header"]
