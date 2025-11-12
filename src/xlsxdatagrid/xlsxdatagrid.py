@@ -209,6 +209,7 @@ class FieldSchema(BaseModel):
         None  # this is what the https://specs.frictionlessdata.io//table-schema/ but other things
     )
     formula: ty.Optional[str] = None
+    required: bool = True
 
 
 class FieldSchemaXl(FieldSchema):
@@ -315,7 +316,6 @@ class DataGridMetaData(BaseModel):
     )
     is_transposed: bool = False  # TODO: rename -> display_transposed
     header_depth: int = Field(1, validate_default=True)
-    # include_header_titles: bool = True  # TODO
     datamodel_url: ty.Optional[HttpUrl] = Field(
         None, validation_alias=AliasChoices("datamodel_url", "DatamodelUrl")
     )
@@ -618,25 +618,16 @@ def get_xlgrid(
     times = [f.name for f in gridschema.fields if f.format == "time"]
 
     for d in date_times:
-        data[d] = [
-            _datetime_to_excel_datetime(get_datetime(v), False, True) for v in data[d]
-        ]
-        format_arrays[d] = "datetime"
+        process_datetime_field(gridschema, data, format_arrays, d, get_datetime, "datetime")
+
     for d in dates:
-        data[d] = [
-            _datetime_to_excel_datetime(get_datetime(v), False, True) for v in data[d]
-        ]
-        format_arrays[d] = "date"
+        process_datetime_field(gridschema, data, format_arrays, d, get_datetime, "date")
+
     for d in times:
-        data[d] = [
-            _datetime_to_excel_datetime(get_time(v), False, True) for v in data[d]
-        ]
-        format_arrays[d] = "time"
+        process_datetime_field(gridschema, data, format_arrays, d, get_time, "time")
+
     for d in durations:
-        data[d] = [
-            _datetime_to_excel_datetime(get_duration(v), False, True) for v in data[d]
-        ]
-        format_arrays[d] = "duration"
+        process_datetime_field(gridschema, data, format_arrays, d, get_duration, "duration")
 
     di = {}
 
@@ -661,6 +652,29 @@ def get_xlgrid(
 
     return XlGrid(**di)
 
+# Run datetime validation only if the field is required, or date value is not empty
+def process_datetime_field(gridschema, data, format_arrays, d, converter, format_type):
+    field = next(field for field in gridschema.fields if field.name == d)
+    values = data.get(d)
+
+    # Skip if data[d] is None or empty (and not required)
+    if not field.required and (not isinstance(values, list) or len(values) == 0):
+        return
+
+    # Ensure we have a list to iterate
+    if not isinstance(values, list):
+        values = [values]
+
+    processed = []
+    for v in values:
+        if v is None and not field.required:
+            # skip None values if not required
+            continue
+        processed.append(_datetime_to_excel_datetime(converter(v), False, True))
+
+    if processed:
+        data[d] = processed
+        format_arrays[d] = format_type
 
 def flatten_allOf(di: dict) -> dict:
     if "allOf" in di.keys():
@@ -701,6 +715,14 @@ def convert_records_to_datagrid_schema(schema: dict):
         flatten_allOf(v) | {"name": k}
         for k, v in gridschema["items"]["properties"].items()
     ]
+    
+    for field in gridschema["fields"]:
+        has_null = False
+        if "anyOf" in field:
+            has_null = any(opt.get("type") == "null" for opt in field["anyOf"])
+        if has_null:
+            field["required"] = False
+        
     gridschema["fields"] = flatten_anyOf(gridschema["fields"])
     # move constraints
     for n in range(0, len(gridschema["fields"])):
