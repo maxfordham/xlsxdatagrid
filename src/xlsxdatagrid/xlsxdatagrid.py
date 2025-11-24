@@ -523,6 +523,9 @@ def get_xlgrid(
         x += 1
     # ^ leave room for the header names
 
+    x += 1
+    # ^ leave room for the comment row
+    
     x += 1 if not exclude_metadata else 0
     # ^ leave room for the metadata
 
@@ -840,7 +843,7 @@ def write_grid(
         (0, header_index + 1) if gridschema.is_transposed else (header_index + 1, 0)
     )
     header_border = {"right": 5} if gridschema.is_transposed else {"bottom": 5}
-    formats = {k: workbook.add_format(v) for k, v in xlgrid.formats.items()}
+    formats = {k: workbook.add_format(v | {'text_wrap': True}) for k, v in xlgrid.formats.items()}
     format_arrays = {k: formats[v] for k, v in xlgrid.format_arrays.items()}
     conditional_formats = []
 
@@ -859,6 +862,7 @@ def write_grid(
         dict(font_color="#999999", italic=True)
     )
     header_white_cell_format = workbook.add_format(dict(font_color="#FFFFFF"))
+    default_text_wrap_format = workbook.add_format({'text_wrap': True})
 
     # special formats for arrays (mostly used for datetime)
     # for k, v in xlgrid.format_arrays.items():
@@ -932,7 +936,7 @@ def write_grid(
             if k in format_arrays:
                 write_array(*v, li, format_arrays[k])
             else:
-                write_array(*v, li)
+                write_array(*v, li, default_text_wrap_format)
 
     if len(gridschema.datagrid_index_name) > 0:
         if gridschema.is_transposed:
@@ -960,6 +964,7 @@ def write_grid(
 
     # write column labels
     x, y = xlgrid.xy
+    x += 1  # for comment row
     x += 1 if not exclude_metadata else 0  # for metadata row
     if gridschema.is_transposed:
         # set empty table headers to be white
@@ -976,8 +981,10 @@ def write_grid(
         worksheet.write_comment(xl_rowcol_to_cell(*cell), *v)
 
     worksheet.freeze_panes(*freeze_panes)
-    worksheet.autofit()
+    worksheet.autofit(max_width=300)
     worksheet.hide_gridlines(xlgrid.hide_gridlines)
+    #write comment
+    worksheet.write(*xlgrid.xy, "#To enter a numeric value in a string-type field, prefix the value with an apostrophe (') to ensure it is treated as text.", header_label_cell_format)
     # write metadata
     if not exclude_metadata:
         worksheet.write(*xlgrid.xy, xlgrid.metadata, header_label_cell_format)
