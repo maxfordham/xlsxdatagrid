@@ -523,9 +523,6 @@ def get_xlgrid(
         x += 1
     # ^ leave room for the header names
 
-    x += 1
-    # ^ leave room for the comment row
-    
     x += 1 if not exclude_metadata else 0
     # ^ leave room for the metadata
 
@@ -964,7 +961,6 @@ def write_grid(
 
     # write column labels
     x, y = xlgrid.xy
-    x += 1  # for comment row
     x += 1 if not exclude_metadata else 0  # for metadata row
     if gridschema.is_transposed:
         # set empty table headers to be white
@@ -983,8 +979,6 @@ def write_grid(
     worksheet.freeze_panes(*freeze_panes)
     worksheet.autofit(max_width=300)
     worksheet.hide_gridlines(xlgrid.hide_gridlines)
-    #write comment
-    worksheet.write(*xlgrid.xy, "#To enter a numeric value in a string-type field, prefix the value with an apostrophe (') to ensure it is treated as text.", header_label_cell_format)
     # write metadata
     if not exclude_metadata:
         worksheet.write(*xlgrid.xy, xlgrid.metadata, header_label_cell_format)
