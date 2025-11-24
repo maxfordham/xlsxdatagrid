@@ -840,7 +840,7 @@ def write_grid(
         (0, header_index + 1) if gridschema.is_transposed else (header_index + 1, 0)
     )
     header_border = {"right": 5} if gridschema.is_transposed else {"bottom": 5}
-    formats = {k: workbook.add_format(v) for k, v in xlgrid.formats.items()}
+    formats = {k: workbook.add_format(v | {'text_wrap': True}) for k, v in xlgrid.formats.items()}
     format_arrays = {k: formats[v] for k, v in xlgrid.format_arrays.items()}
     conditional_formats = []
 
@@ -859,6 +859,7 @@ def write_grid(
         dict(font_color="#999999", italic=True)
     )
     header_white_cell_format = workbook.add_format(dict(font_color="#FFFFFF"))
+    default_text_wrap_format = workbook.add_format({'text_wrap': True})
 
     # special formats for arrays (mostly used for datetime)
     # for k, v in xlgrid.format_arrays.items():
@@ -932,7 +933,7 @@ def write_grid(
             if k in format_arrays:
                 write_array(*v, li, format_arrays[k])
             else:
-                write_array(*v, li)
+                write_array(*v, li, default_text_wrap_format)
 
     if len(gridschema.datagrid_index_name) > 0:
         if gridschema.is_transposed:
@@ -976,7 +977,7 @@ def write_grid(
         worksheet.write_comment(xl_rowcol_to_cell(*cell), *v)
 
     worksheet.freeze_panes(*freeze_panes)
-    worksheet.autofit()
+    worksheet.autofit(max_width=300)
     worksheet.hide_gridlines(xlgrid.hide_gridlines)
     # write metadata
     if not exclude_metadata:

@@ -61,9 +61,16 @@ def process_data(
     is_transposed: bool = False,
     header_depth: int = 1,
     empty_string_to_none=True,
+    model: BaseModel | None = None,
 ) -> list[dict]:
     if is_transposed:
         data = list(map(list, zip(*data)))
+        
+    if model is not None:
+        schema = model.model_json_schema()
+        datagrid_index_name = schema.get('datagrid_index_name', [])
+        if len(datagrid_index_name) > 0:
+            header_depth = len(datagrid_index_name)
 
     header_names = [d[0] for d in data[0:header_depth]]
 
@@ -205,7 +212,7 @@ def read_list_of_lists(
     model: BaseModel | None = None,
 ) -> list[dict]:
     data = drop_leading_comments(data)
-    processed_data = process_data(data, is_transposed, header_depth, True)
+    processed_data = process_data(data, is_transposed, header_depth, True, model)
     try:
         validated_data = pydantic_validate_data(processed_data, model)
         return validated_data, []
