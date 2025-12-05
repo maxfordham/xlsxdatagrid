@@ -188,3 +188,27 @@ def test_enum_write():
         header_depth=1,
         model=ModelWithEnumList,
     )
+
+
+def test_name_that_exceeds_31_characters():
+    from pydantic import BaseModel, RootModel
+
+    class ANameThatExceedsThirtyOneCharacters(BaseModel):
+        value: int
+
+    class ANameThatExceedsThirtyOneCharactersList(RootModel):
+        root: list[ANameThatExceedsThirtyOneCharacters]
+        
+    data = [{"value": 10}, {"value": 20}, {"value": 30}]
+    
+    pydantic_object = ANameThatExceedsThirtyOneCharactersList(data)
+    dest_dir = pathlib.Path("tests/xl/pydantic")
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    fpth = dest_dir / "ANameThatExceedsThirtyOneCharactersEasily.xlsx"
+    out_fpth, _ = xdg_from_pydantic_object(
+        pydantic_object,
+        fpth=fpth,
+        is_transposed=False,
+        exclude_metadata=False,
+    )
+    assert out_fpth.exists()
