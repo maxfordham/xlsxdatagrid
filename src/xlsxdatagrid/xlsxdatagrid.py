@@ -818,6 +818,8 @@ def write_grid(
 ) -> xw.worksheet.Worksheet:
     data = data.root
     name = gridschema.title
+    if len(name) > 31:
+        name = name[0:30] + "-" # excel sheet name max length is 31 chars
     worksheet = workbook.add_worksheet(name=name)
     header_depth = len(gridschema.datagrid_index_name)  # header depth
     write_array = (
