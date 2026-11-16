@@ -9,8 +9,9 @@ title: "report-a4-p"
 
 ```py
 import pathlib
-from xlsxdatagrid.demo_schemas.dtypes import MyColor, DataTypes, DataTypesArray
+
 import xlsxdatagrid as xdg
+from xlsxdatagrid.demo_schemas.dtypes import DataTypes, DataTypesArray, MyColor
 
 t1, t2, t3 = (
     DataTypes(d_enum=MyColor.GREEN),

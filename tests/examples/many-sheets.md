@@ -9,15 +9,15 @@ title: "many sheets"
 
 ```py
 import pathlib
+
+from xlsxdatagrid.demo_schemas.dtypes import (
+    DataTypesArray,
+    DataTypesArrayTransposed,
+    DataTypesBasicFields,
+)
 from xlsxdatagrid.xlsxdatagrid import (
     convert_dict_arrays_to_list_records,
     xdg_from_pydantic_objects,
-)
-
-from xlsxdatagrid.demo_schemas.dtypes import (
-    DataTypesBasicFields,
-    DataTypesArray,
-    DataTypesArrayTransposed,
 )
 
 ARRAY_DATA = {

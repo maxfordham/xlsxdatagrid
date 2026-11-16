@@ -9,10 +9,12 @@ title: "chart"
 
 ```py
 import pathlib
+
+import pandas as pd
+
 from xlsxdatagrid.xlsxdatagrid import (
     wb_from_dataframe,
 )
-import pandas as pd
 
 
 def x_squared():

@@ -156,6 +156,37 @@ def make_datetime_tz_aware(data, pydantic_model):
         return data
 
 
+def convert_time_to_timedelta(data, pydantic_model):
+    row_model = pydantic_model.model_fields["root"].annotation.__args__[0]
+
+    def field_is_timedelta(annotation):
+        return annotation is timedelta or any(
+            field_is_timedelta(arg) for arg in ty.get_args(annotation)
+        )
+
+    keys = [
+        key
+        for key, field in row_model.model_fields.items()
+        if field_is_timedelta(field.annotation)
+    ]
+    return [
+        {
+            key: (
+                timedelta(
+                    hours=value.hour,
+                    minutes=value.minute,
+                    seconds=value.second,
+                    microseconds=value.microsecond,
+                )
+                if key in keys and isinstance(value, time)
+                else value
+            )
+            for key, value in row.items()
+        }
+        for row in data
+    ]
+
+
 def drop_leading_comments(data: list[list[str]]) -> list[list[str]]:
     """
     Removes only the initial consecutive lines that start with '#'
@@ -184,6 +215,7 @@ def get_list_of_list_from_string(
 def pydantic_validate_data(
     data, pydantic_model: BaseModel, return_pydantic_model: bool = False
 ):
+    data = convert_time_to_timedelta(data, pydantic_model)
     data = make_datetime_tz_aware(data, pydantic_model)
     obj = pydantic_model.model_validate(data)
     if return_pydantic_model:

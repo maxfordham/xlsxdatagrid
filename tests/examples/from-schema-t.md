@@ -9,12 +9,13 @@ title: "report-a4-p Transposed"
 
 ```py
 import pathlib
+
+import xlsxdatagrid as xdg
 from xlsxdatagrid.demo_schemas.dtypes import (
-    MyColor,
     DataTypes,
     DataTypesArrayTransposed,
+    MyColor,
 )
-import xlsxdatagrid as xdg
 
 t1, t2, t3 = (
     DataTypes(d_enum=MyColor.GREEN),

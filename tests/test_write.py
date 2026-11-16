@@ -91,6 +91,7 @@ def test_xdg_from_pydantic_object(is_transposed: bool, exclude_metadata: bool):
     assert not errors
     assert isinstance(data, list)
     assert len(data) == 3
+    assert all(row["i_duration"] == "PT2H33M3S" for row in data)
 
 
 def test_optional_enum_write():

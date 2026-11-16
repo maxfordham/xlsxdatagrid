@@ -7,18 +7,15 @@ name = "xlsxdatagrid"
 dynamic = ["version"]
 description = ''
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.12,<3.14"
 license = "MIT"
 keywords = []
 authors = [{ name = "jgunstone", email = "j.gunstone@maxfordham.com" }]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
@@ -70,11 +67,11 @@ docs = { features = ["docs"] }
 # test deps and commands 
 [tool.pixi.feature.test.dependencies]
 pytest = "*"
-ruff = ">=0.6.8,<0.7"
 hatch = ">=1,<2"
 
 [tool.pixi.feature.test.pypi-dependencies]
 pytest-examples = "*"
+ruff = "*"
 
 [tool.pixi.feature.test.tasks]
 tests = "pytest"
